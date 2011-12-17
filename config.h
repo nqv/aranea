@@ -7,6 +7,7 @@
 #define ARANEA_CONFIG_H_
 
 static const char SERVER_NAME[] = "Aranea/0.1.0";
+static const char HTTP_VERSION[] = "HTTP/1.0";
 
 static const int PORT = 8080;
 static const int TIMEOUT = 60;      /* sec */

@@ -104,7 +104,7 @@ struct client_t *server_accept(struct server_t *self) {
     }
     /* save client information */
     c->remote_fd = fd;
-    c->state = STATE_RECV_HEADER;
+    c->state = STATE_RECV_HEAD;
     inet_ntop(addr.ss_family, SERVER_GETINADDR_(&addr), c->ip, sizeof(c->ip));
     return c;
 err:

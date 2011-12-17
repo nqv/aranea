@@ -1,13 +1,13 @@
 PKG = aranea
 DEBUG ?= 0
 
-SRC = aranea.c server.c client.c
+SRC = aranea.c server.c client.c http.c
 OBJ = ${SRC:.c=.o}
 
-CFLAGS_DEBUG = -O0 -g -DDEBUG
+CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
 CFLAGS_NDEBUG = -DNDEBUG
 
-CFLAGS += -Wall -Wextra -Werror
+CFLAGS += -Wall -Wextra
 
 ifeq (${DEBUG},1)
 CFLAGS += ${CFLAGS_DEBUG}

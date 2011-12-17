@@ -45,10 +45,10 @@ void server_poll() {
                 continue;
             }
             switch (c->state) {
-            case STATE_RECV_HEADER:
+            case STATE_RECV_HEAD:
                 SERVER_SETFD_(c->remote_fd, &rfds, max_rfd);
                 break;
-            case STATE_SEND_HEADER:
+            case STATE_SEND_HEAD:
                 SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
                 break;
             case STATE_SEND_CONTENT:
@@ -74,19 +74,19 @@ void server_poll() {
             c = server_accept(&server_);
             if (c != NULL) {
                 c->timeout = cur_time_ + TIMEOUT;
-                client_handle_recvheader(c);
+                client_handle_recvhead(c);
             }
         }
         A_FOREACH_S(list_client_, c, tc) {
             switch (c->state) {
-            case STATE_RECV_HEADER:
+            case STATE_RECV_HEAD:
                 if (FD_ISSET(c->remote_fd, &rfds)) {
-                    client_handle_recvheader(c);
+                    client_handle_recvhead(c);
                 }
                 break;
-            case STATE_SEND_HEADER:
+            case STATE_SEND_HEAD:
                 if (FD_ISSET(c->remote_fd, &wfds)) {
-                    client_handle_sendheader(c);
+                    client_handle_sendhead(c);
                 }
                 break;
             case STATE_SEND_CONTENT:

@@ -32,8 +32,8 @@
 
 enum {
     STATE_NONE                  = 0,
-    STATE_RECV_HEADER,
-    STATE_SEND_HEADER,
+    STATE_RECV_HEAD,
+    STATE_SEND_HEAD,
     STATE_SEND_CONTENT,
 };
 
@@ -47,6 +47,22 @@ enum {
     FLAG_QUIT                   = 1 << 0,
 };
 
+struct request_t {
+    const char *method;
+    const char *url;
+    const char *version;
+    const char *connection;
+    const char *content_type;
+    const char *content_length;
+    const char *range_from;
+    const char *range_to;
+    const char *if_mod_since;
+};
+
+struct response_t {
+    int status_code;
+};
+
 struct client_t {
     int remote_fd;      /**< Socket descriptor */
     int local_fd;       /**< File descriptor */
@@ -56,6 +72,9 @@ struct client_t {
     char ip[MAX_IP_LENGTH];
     char data[MAX_REQUEST_LENGTH];
     int data_length;
+
+    struct request_t request;
+    struct response_t response;
 
     struct client_t *next;
     struct client_t **prev;
@@ -77,10 +96,14 @@ void client_destroy(struct client_t *self);
 void client_add(struct client_t *self, struct client_t **list);
 void client_remove(struct client_t *self);
 void client_close(struct client_t *self);
-void client_handle_recvheader(struct client_t *self);
-void client_handle_sendheader(struct client_t *self);
+void client_handle_recvhead(struct client_t *self);
+void client_handle_sendhead(struct client_t *self);
 void client_handle_recvfile(struct client_t *self);
 void client_handle_sendfile(struct client_t *self);
+
+/* http.c */
+int http_parse(struct request_t *self, char *data, int len);
+const char *http_get_status_string(int code);
 
 #endif /* ARANEA_H_ */
 

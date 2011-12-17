@@ -56,11 +56,41 @@ void client_destroy(struct client_t *self) {
 }
 
 static
-void client_process(struct client_t *self) {
+void client_process_get(struct client_t *self) {
     (void)self;
 }
 
-void client_handle_recvheader(struct client_t *self) {
+static
+void client_process_head(struct client_t *self) {
+    (void)self;
+}
+
+static
+void client_process_post(struct client_t *self) {
+    (void)self;
+}
+
+static
+void client_process(struct client_t *self) {
+    memset(&self->request, 0, sizeof(self->request));
+    memset(&self->response, 0, sizeof(self->response));
+    if (http_parse(&self->request, self->data, self->data_length) != 0
+            || self->request.method == NULL || self->request.url == NULL
+            || self->request.version == NULL) {
+        self->response.status_code = 400;
+    } else if (strcmp(self->request.method, "GET") == 0) {
+        client_process_get(self);
+    } else if (strcmp(self->request.method, "HEAD") == 0) {
+        client_process_head(self);
+    } else if (strcmp(self->request.method, "POST") == 0) {
+        client_process_post(self);
+    } else {
+        self->response.status_code = 400;
+    }
+    self->state = STATE_SEND_HEAD;
+}
+
+void client_handle_recvhead(struct client_t *self) {
     int len;
 
     len = recv(self->remote_fd, self->data + self->data_length,
@@ -68,7 +98,7 @@ void client_handle_recvheader(struct client_t *self) {
     A_LOG("client: recv %d", len);
     if (len == -1) {
         if (errno == EAGAIN) {
-            A_LOG("client: recv blocked %d", self->fd);
+            A_LOG("client: recv blocked %d", self->remote_fd);
             return;
         }
         self->state = STATE_NONE;
@@ -85,14 +115,14 @@ void client_handle_recvheader(struct client_t *self) {
         }
     }
     if (len >= MAX_REQUEST_LENGTH) {
-        self->state = STATE_SEND_HEADER;
+        self->state = STATE_SEND_HEAD;
     }
-    if (self->state == STATE_SEND_HEADER) {
-        client_handle_sendheader(self);
+    if (self->state == STATE_SEND_HEAD) {
+        client_handle_sendhead(self);
     }
 }
 
-void client_handle_sendheader(struct client_t *self) {
+void client_handle_sendhead(struct client_t *self) {
     (void)self;
 }
 
