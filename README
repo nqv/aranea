@@ -1,0 +1,22 @@
+Aranea - Simple HTTP server.
+
+There are a lot of HTTPd programs out there, but none of them meets my needs:
+- Running on embedded Linux.
+- Small footprint, minimize the amount of malloc() calls.
+- Support GET, HEAD, POST.
+- Support executing scripts (CGI) with only essential environment variables.
+- Client's socket is passed directly to CGI script.
+- Use Non-blocking socket, sendfile().
+- Support uClinux (no fork or multi-threads, limited stack size).
+
+To achieve these goals, Aranea is not compliant with any specifications :)
+
+* Features in progress:
+- Partial content
+- Authentication
+- Cookie
+- axTLS (http://axtls.sf.net)
+
+* Features will not be supported:
+- Directory listing
+- Other platforms
