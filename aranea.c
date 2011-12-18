@@ -10,12 +10,18 @@
 #include <sys/socket.h>
 #include <time.h>
 #include "aranea.h"
-#include "config.h"
 
 static struct server_t server_;
 static struct client_t *list_client_ = NULL;
 static time_t cur_time_;
 static unsigned int flags_ = 0;
+
+time_t *get_cur_time(int update) {
+    if (update) {
+        cur_time_ = time(NULL);
+    }
+    return &cur_time_;
+}
 
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \
@@ -45,13 +51,13 @@ void server_poll() {
                 continue;
             }
             switch (c->state) {
-            case STATE_RECV_HEAD:
+            case STATE_RECV_HEADER:
                 SERVER_SETFD_(c->remote_fd, &rfds, max_rfd);
                 break;
-            case STATE_SEND_HEAD:
+            case STATE_SEND_HEADER:
                 SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
                 break;
-            case STATE_SEND_CONTENT:
+            case STATE_SEND_FILE:
                 SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
                 break;
             }
@@ -74,22 +80,28 @@ void server_poll() {
             c = server_accept(&server_);
             if (c != NULL) {
                 c->timeout = cur_time_ + TIMEOUT;
-                client_handle_recvhead(c);
+                client_handle_recvheader(c);
             }
         }
         A_FOREACH_S(list_client_, c, tc) {
             switch (c->state) {
-            case STATE_RECV_HEAD:
+            case STATE_RECV_HEADER:
                 if (FD_ISSET(c->remote_fd, &rfds)) {
-                    client_handle_recvhead(c);
+                    c->timeout = cur_time_ + TIMEOUT;
+                    client_handle_recvheader(c);
                 }
                 break;
-            case STATE_SEND_HEAD:
+            case STATE_SEND_HEADER:
                 if (FD_ISSET(c->remote_fd, &wfds)) {
-                    client_handle_sendhead(c);
+                    c->timeout = cur_time_ + TIMEOUT;
+                    client_handle_sendheader(c);
                 }
                 break;
-            case STATE_SEND_CONTENT:
+            case STATE_SEND_FILE:
+                if (FD_ISSET(c->local_fd, &wfds)) {
+                    c->timeout = cur_time_ + TIMEOUT;
+                    client_handle_sendfile(c);
+                }
                 break;
             }
             if (c->state == STATE_NONE) {

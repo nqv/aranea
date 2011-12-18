@@ -6,12 +6,19 @@
 #ifndef ARANEA_CONFIG_H_
 #define ARANEA_CONFIG_H_
 
-static const char SERVER_NAME[] = "Aranea/0.1.0";
-static const char HTTP_VERSION[] = "HTTP/1.0";
+#define SERVER_NAME                 "Aranea/0.0.1"
+#define HTTP_VERSION                "HTTP/1.0"
 
-static const int PORT = 8080;
-static const int TIMEOUT = 60;      /* sec */
+#define MAX_REQUEST_LENGTH          1024
+#define MAX_PATH_LENGTH             512         /* PATH_MAX */
 
-static const char CGI_PREFIX[] = "/cgi-bin";
+#define WWW_ROOT                    "/var/www"
+#define PORT                        8080
+#define TIMEOUT                     60          /* sec */
+
+#define CGI_PREFIX                  "/cgi-bin"
+#define INDEX_NAME                  "index.html"
 
 #endif /* ARANEA_CONFIG_H_ */
+
+/* vim: set ts=4 sw=4 expandtab: */

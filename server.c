@@ -9,10 +9,12 @@
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <time.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include "aranea.h"
 
 int server_init(struct server_t *self) {
@@ -97,6 +99,13 @@ struct client_t *server_accept(struct server_t *self) {
             A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
             goto err;
         }
+#if 0
+        flags = 1;
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags,
+                sizeof(flags)) == -1) {
+            goto err;
+        }
+#endif
     }
     c = client_new();
     if (c == NULL) {
@@ -104,7 +113,7 @@ struct client_t *server_accept(struct server_t *self) {
     }
     /* save client information */
     c->remote_fd = fd;
-    c->state = STATE_RECV_HEAD;
+    c->state = STATE_RECV_HEADER;
     inet_ntop(addr.ss_family, SERVER_GETINADDR_(&addr), c->ip, sizeof(c->ip));
     return c;
 err:
