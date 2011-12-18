@@ -55,6 +55,7 @@ enum {
 struct request_t {
     char *method;
     char *url;
+    char *query_string;
     char *version;
     char *connection;
     char *content_type;

@@ -64,6 +64,17 @@ void http_save_header(struct request_t *self, char *key, char *val) {
     }
 }
 
+static
+char *http_parse_querystring(char *url) {
+    char *p;
+
+    p = strchr(url, '?');
+    if (p == NULL) {
+        return NULL;
+    }
+    *p = '\0';
+    return p + 1;
+}
 
 /** Parse the initial request line
  * Also modify data of client (padding NULL)
@@ -96,6 +107,8 @@ char *http_parse_request(struct request_t *self, char *data, int len) {
     }
     *end = '\0';
     self->url = data;
+    /* query string in url */
+    self->query_string = http_parse_querystring(self->url);
     /* version */
     len -= end - data + 1;
     if (len <= 0) {
