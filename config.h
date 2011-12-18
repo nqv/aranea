@@ -14,7 +14,8 @@
 
 #define WWW_ROOT                    "/var/www"
 #define PORT                        8080
-#define TIMEOUT                     60          /* sec */
+#define SERVER_TIMEOUT              60          /* sec */
+#define CLIENT_TIMEOUT              60          /* sec */
 
 #define CGI_PREFIX                  "/cgi-bin"
 #define INDEX_NAME                  "index.html"

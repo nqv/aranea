@@ -60,7 +60,7 @@ void http_save_header(struct request_t *self, char *key, char *val) {
     } else if (strcasecmp(key, "If-Modified-Since") == 0) {
         self->if_mod_since = val;
     } else {
-        A_LOG("header not supported: %s %s", key, val);
+        A_LOG("header: %s %s", key, val);
     }
 }
 
@@ -229,6 +229,10 @@ int http_gen_header(struct response_t *self, char *data, int len) {
         }
         sz += i;
     }
+    i = snprintf(data + sz, len, "\r\n");
+    if (i <= 0) {
+        return -1;
+    }
     return sz + i;
 }
 
@@ -282,25 +286,36 @@ void http_sanitize_url(char *url) {
 }
 
 const char *http_string_status(int code) {
-    switch (code) {
-    case 200:
-        return "OK";
-    case 301:
-        return "Moved Permanently";
-    case 302:
-        return "Moved Temporarily ";
-    case 303:
-        return "See Other";
-    case 400:
-        return "Bad Request";
-    case 403:
-        return "Forbidden";
-    case 404:
-        return "Not Found";
-    case 500:
-        return "Server Error";
-    case 501:
-        return "Not Implemented";
+    if (code < 300) {               /* 2xx */
+        switch (code) {
+        case 200:
+            return "OK";
+        }
+    } else if (code < 400) {        /* 3xx */
+        switch (code) {
+        case 301:
+            return "Moved Permanently";
+        case 302:
+            return "Moved Temporarily ";
+        case 303:
+            return "See Other";
+        }
+    } else if (code < 500) {        /* 4xx */
+        switch (code) {
+        case 400:
+            return "Bad Request";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        }
+    } else {
+        switch (code) {             /* 5xx */
+        case 500:
+            return "Server Error";
+        case 501:
+            return "Not Implemented";
+        }
     }
     A_ERR("unknown code %d", code);
     return "Unknown";

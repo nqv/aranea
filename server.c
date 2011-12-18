@@ -64,6 +64,7 @@ int server_init(struct server_t *self) {
         A_ERR("server: listen %s", strerror(errno));
         return -1;
     }
+    A_LOG("server: listen %d", self->port);
     self->fd = fd;
     return 0;
 }
@@ -84,7 +85,6 @@ struct client_t *server_accept(struct server_t *self) {
 
     len = sizeof(addr);
     fd = accept(self->fd, (struct sockaddr *)&addr, &len);
-    A_LOG("server: accept %d", fd);
     if (fd == -1) {
         A_ERR("server: accept %s", strerror(errno));
         return NULL;
@@ -115,6 +115,7 @@ struct client_t *server_accept(struct server_t *self) {
     c->remote_fd = fd;
     c->state = STATE_RECV_HEADER;
     inet_ntop(addr.ss_family, SERVER_GETINADDR_(&addr), c->ip, sizeof(c->ip));
+    A_LOG("server: accept %d %s", fd, c->ip);
     return c;
 err:
     close(fd);

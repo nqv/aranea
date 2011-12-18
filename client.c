@@ -28,7 +28,7 @@ void client_add(struct client_t *self, struct client_t **list) {
 }
 
 void client_remove(struct client_t *self) {
-    if (self->next == NULL) {
+    if (self->next != NULL) {
         self->next->prev = self->prev;
     }
     *(self->prev) = self->next;
@@ -101,7 +101,7 @@ void client_process_get(struct client_t *self) {
     }
     /* make sure it's a regular file */
     if (S_ISDIR(st.st_mode) || !S_ISREG(st.st_mode)) {
-        A_ERR("not a regular file %x", st.st_mode);
+        A_ERR("not a regular file 0x%x", st.st_mode);
         self->response.status_code = 403;
         goto err;
     }
@@ -117,6 +117,7 @@ void client_process_get(struct client_t *self) {
         A_LOG("rangefrom=%s rangeto=%s", self->request.range_from,
                 self->request.range_to);
     }
+    self->response.status_code = 200;
     self->data_length = http_gen_header(&self->response, self->data,
             sizeof(self->data));
     self->data_sent = 0;
@@ -173,13 +174,14 @@ void client_handle_recvheader(struct client_t *self) {
     len = recv(self->remote_fd, self->data + self->data_length,
             sizeof(self->data) - self->data_length, 0);
     A_LOG("client: recv %d", len);
-    if (len == -1) {
-        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+    if (len <= 0) {
+        if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             /* retry later */
             A_LOG("client: recv blocked %d", self->remote_fd);
             return;
         }
         self->state = STATE_NONE;
+        return;
     }
     self->data_length += len;
     /* check header termination */
@@ -204,26 +206,27 @@ void client_handle_recvheader(struct client_t *self) {
  */
 void client_handle_sendheader(struct client_t *self) {
     ssize_t len;
-    len = send(self->remote_fd, self->data + self->data_sent,
-                self->data_length - self->data_sent, 0);
-    A_LOG("client: %d send %d %s", self->remote_fd, len, strerror(errno));
 
-    /* handle any errors (-1) or closure (0) in send() */
-    if (len == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return;
-        }
+    if (self->data_length <= 0) {
+        A_ERR("client: %d invalid len=%d", self->remote_fd, self->data_length);
         self->state = STATE_NONE;
         return;
     }
-    if (len == 0) {
+    len = send(self->remote_fd, self->data + self->data_sent,
+                self->data_length - self->data_sent, 0);
+    A_LOG("client: %d send %d/%d", self->remote_fd, len, self->data_length);
+    if (len <= 0) {
+        if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return;
+        }
         self->state = STATE_NONE;
         return;
     }
     self->data_sent += len;
 
     /* check if finish sending header */
-    if (self->data_sent == self->data_length) {
+    if (self->data_sent >= self->data_length) {
+        A_LOG("client: %d finish sending header", self->remote_fd);
         if (self->local_fd == -1) {
             self->state = STATE_NONE;
         } else {
@@ -243,20 +246,18 @@ void client_handle_sendfile(struct client_t *self) {
     offset = self->file_from + self->file_sent;
     len = sendfile(self->remote_fd, self->local_fd, &offset,
             self->response.content_length - self->file_sent);
-
-    A_LOG("sendfile: %d %d %s", self->local_fd, len, strerror(errno));
-    if (len == -1) {
-        if (errno != EAGAIN) {
+    A_LOG("client: %d sendfile %d/%ld", self->remote_fd, len,
+            self->response.content_length);
+    if (len <= 0) {
+        if (len == -1 && errno == EAGAIN) {
+            A_LOG("client: %d sendfile blocked", self->remote_fd);
+        } else {
             self->state = STATE_NONE;
         }
         return;
     }
-    if (len == 0) {
-        self->state = STATE_NONE;
-        return;
-    }
     self->file_sent += len;
-    if (self->file_sent == self->data_length) {
+    if (self->file_sent >= self->response.content_length) {
         self->state = STATE_NONE;
     }
 }
