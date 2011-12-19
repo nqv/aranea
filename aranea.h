@@ -6,6 +6,7 @@
 #ifndef ARANEA_H_
 #define ARANEA_H_
 
+#include <sys/types.h>
 #include "config.h"
 
 #define A_QUOTE(x)              #x
@@ -76,6 +77,10 @@ struct mimetype_t {
     const char *type;
 };
 
+struct config_t {
+	const char *root;
+};
+
 struct client_t {
     int remote_fd;      /**< Socket descriptor */
     int local_fd;       /**< File descriptor */
@@ -129,8 +134,10 @@ const char *http_string_status(int code);
 /* mimetype */
 const char *mimetype_get(const char *filename);
 
-time_t *get_cur_time(int update);
+/* global variables */
+extern time_t g_curtime;
+extern struct config_t g_config;
 
 #endif /* ARANEA_H_ */
 
-/* vim: set ts=4 sw=4: */
+/* vim: set ts=4 sw=4 expandtab: */

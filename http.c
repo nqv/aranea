@@ -171,7 +171,7 @@ static A_INLINE
 int http_gen_time(char *data, int len) {
     struct tm *tm;
 
-    tm = gmtime(get_cur_time(0));
+    tm = gmtime(&g_curtime);
     return strftime(data, len, "Date: " DATE_FORMAT "\r\n", tm);
 }
 

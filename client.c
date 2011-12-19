@@ -69,13 +69,19 @@ void client_process_get(struct client_t *self) {
     http_sanitize_url(self->request.url);
     A_LOG("url=%s", self->request.url);
 
-    len = strlen(self->request.url);
-    if (self->request.url[len - 1] == '/') {
-        /* url/index.html */
+    /* get real path */
+    /* snprintf is slower but safer than strcat/strncpy */
+    if (g_config.root != NULL) {
+        len = snprintf(path, sizeof(path), "%s%s", g_config.root,
+            self->request.url);
+    } else {                            /* chroot */
+        len = snprintf(path, sizeof(path), "%s", self->request.url);
     }
-    snprintf(path, sizeof(path), "%s%s", WWW_ROOT, self->request.url);
+    if (self->request.url[strlen(self->request.url) - 1] == '/') {
+        /* url/index.html */
+        len = snprintf(path + len, sizeof(path) - len, "%s", WWW_INDEX);
+    }
     A_LOG("path=%s", path);
-
     /* open file */
     self->local_fd = open(path, O_RDONLY | O_NONBLOCK);
     if (self->local_fd == -1) {

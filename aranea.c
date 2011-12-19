@@ -11,17 +11,13 @@
 #include <time.h>
 #include "aranea.h"
 
+/* global vars */
+time_t g_curtime;
+struct config_t g_config;
+
 static struct server_t server_;
 static struct client_t *list_client_ = NULL;
-static time_t cur_time_;
 static unsigned int flags_ = 0;
-
-time_t *get_cur_time(int update) {
-    if (update) {
-        cur_time_ = time(NULL);
-    }
-    return &cur_time_;
-}
 
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \
@@ -45,9 +41,9 @@ void server_poll() {
         max_rfd = max_wfd = -1;
         SERVER_SETFD_(server_.fd, &rfds, max_rfd);
 
-        cur_time_ = time(NULL);
+        g_curtime = time(NULL);
         A_FOREACH(list_client_, c) {
-            if (cur_time_ > c->timeout) {
+            if (g_curtime > c->timeout) {
                 A_LOG("client: timedout %d", c->remote_fd);
                 c->state = STATE_NONE;
                 continue;
@@ -78,8 +74,8 @@ void server_poll() {
             sleep(1);
             continue;
         }
-        cur_time_ = time(NULL);
-        chk_time = cur_time_ + CLIENT_TIMEOUT;
+        g_curtime = time(NULL);
+        chk_time = g_curtime + CLIENT_TIMEOUT;
         if (FD_ISSET(server_.fd, &rfds)) {
             c = server_accept(&server_);
             if (c != NULL) {
@@ -132,6 +128,8 @@ int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
 
+    g_config.root = WWW_ROOT;
+
     server_.port = PORT;
     if (server_init(&server_) != 0) {
         return 1;
@@ -146,3 +144,5 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+
+/* vim: set ts=4 sw=4 expandtab: */

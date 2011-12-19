@@ -13,6 +13,7 @@
 #define MAX_PATH_LENGTH             512         /* PATH_MAX */
 
 #define WWW_ROOT                    "/var/www"
+#define WWW_INDEX                   "index.html"
 #define PORT                        8080
 #define SERVER_TIMEOUT              60          /* sec */
 #define CLIENT_TIMEOUT              60          /* sec */
