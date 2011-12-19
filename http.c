@@ -100,7 +100,11 @@ char *http_parse_request(struct request_t *self, char *data, int len) {
         return NULL;
     }
     data = end + 1;
-    end = memchr(data, ' ', len);
+    if (*data != '/') {
+        A_ERR("url does not start with / %.*s", len, data);
+        return NULL;
+    }
+    end = memchr(data + 1, ' ', len);       /* already know the first char */
     if (end == NULL) {
         A_ERR("no url %d: %.*s", len, len, data);
         return NULL;
