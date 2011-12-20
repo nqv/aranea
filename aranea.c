@@ -125,11 +125,11 @@ void server_poll() {
 #undef SERVER_SETFD_
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-
-    g_config.root = WWW_ROOT;
-
+    if (argc < 2) {
+        g_config.root = ".";                /* current dir */
+    } else {
+        g_config.root = argv[1];
+    }
     server_.port = PORT;
     if (server_init(&server_) != 0) {
         return 1;

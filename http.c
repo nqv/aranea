@@ -29,7 +29,7 @@ int hex_to_int(const char c) {
 static
 void http_parse_range(struct request_t *self, char *val) {
     char *delim;
-    if (strncmp(val, "bytes ", 6) != 0) {
+    if (strncmp(val, "bytes=", 6) != 0) {
         A_ERR("ranges are not in bytes: %s", val);
         return;
     }
@@ -39,12 +39,17 @@ void http_parse_range(struct request_t *self, char *val) {
         A_ERR("no hyphen: %s", val);
         return;
     }
-    if (delim == val) {  /* range_from is not given */
+    if (delim == val) {         /* range_from is not given */
         self->range_from = NULL;
     } else {
+        *delim = '\0';
         self->range_from = val;
     }
     self->range_to = delim + 1;
+    delim = strchr(self->range_to, ',');
+    if (delim != NULL) {
+        *delim = '\0';          /* only the first range in the list */
+    }
 }
 
 static
@@ -171,14 +176,6 @@ char *http_parse_header(struct request_t *self, char *data, int len) {
     return end + 1;
 }
 
-static A_INLINE
-int http_gen_time(char *data, int len) {
-    struct tm *tm;
-
-    tm = gmtime(&g_curtime);
-    return strftime(data, len, "Date: " DATE_FORMAT "\r\n", tm);
-}
-
 int http_parse(struct request_t *self, char *data, int len) {
     char *p;
 
@@ -202,37 +199,48 @@ int http_parse(struct request_t *self, char *data, int len) {
     return 0;
 }
 
+static
+int http_put_headerdate(char *data, int len) {
+    struct tm *tm;
+
+    tm = gmtime(&g_curtime);
+    return strftime(data, len, "Date: " DATE_FORMAT "\r\n", tm);
+}
+
 /** Build HTTP header
  * @return length
  */
-int http_gen_defheader(struct response_t *self, char *data, int len) {
-    int i;
-    i = snprintf(data, len,
-            HTTP_VERSION " %d %s\r\n"
-            "Server: " SERVER_NAME "\r\n",
-            self->status_code, http_string_status(self->status_code));
-    len -= i;
-    if (len <= 0) {
-        return -1;
-    }
-    i += http_gen_time(data + i, len);
-
-    return i;
-}
-
-int http_gen_header(struct response_t *self, char *data, int len) {
+static
+int http_put_headercode(struct response_t *self, char *data, int len) {
     int sz, i;
 
-    sz = http_gen_defheader(self, data, len);
+    sz = snprintf(data, len,
+            HTTP_VERSION " %d %s\r\n"
+            "Server: " SERVER_NAME "\r\n"
+            "Accept-Ranges: bytes\r\n",
+            self->status_code, http_string_status(self->status_code));
     len -= sz;
-    if (sz <= 0 || len <= 0) {
+    if (sz < 0 || len <= 0) {
         return -1;
     }
+    i = http_put_headerdate(data + sz, len);
+    len -= i;
+    if (i < 0 || len <= 0) {
+        return -1;
+    }
+    return sz + i;
+}
+
+static
+int http_put_headercontent(struct response_t *self, char *data, int len) {
+    int sz, i;
+
+    sz = 0;
     if (self->content_length >= 0) {
         i = snprintf(data + sz, len, "Content-Length: %ld\r\n",
                 self->content_length);
         len -= i;
-        if (i <= 0 || len <= 0) {
+        if (i < 0 || len <= 0) {
             return -1;
         }
         sz += i;
@@ -241,13 +249,59 @@ int http_gen_header(struct response_t *self, char *data, int len) {
         i = snprintf(data + sz, len, "Content-Type: %s\r\n",
                 self->content_type);
         len -= i;
-        if (i <= 0 || len <= 0) {
+        if (i < 0 || len <= 0) {
+            return -1;
+        }
+        sz += i;
+    }
+    if (self->last_mod >= 0) {
+        i = strftime(data + sz, len, "Last-Modified: " DATE_FORMAT "\r\n",
+                gmtime(&self->last_mod));
+        len -= i;
+        if (i < 0 || len <= 0) {
+            return -1;
+        }
+        sz += i;
+    }
+    return sz;
+}
+
+static
+int http_put_headerrange(struct response_t *self, char *data, int len) {
+    off_t to;
+
+    to = self->content_from + self->content_length - 1;
+    return snprintf(data, len, "Content-Range: bytes %ld-%ld/%ld\r\n",
+            self->content_from, to, self->total_length);
+}
+
+int http_gen_header(struct response_t *self, char *data, int len,
+        const unsigned int flags) {
+    int sz, i;
+
+    sz = http_put_headercode(self, data, len);
+    len -= sz;
+    if (sz < 0 || len <= 0) {
+        return -1;
+    }
+    if (flags & HTTP_FLAG_CONTENT) {
+        i = http_put_headercontent(self, data + sz, len);
+        len -= i;
+        if (i < 0 || len <= 0) {
+            return -1;
+        }
+        sz += i;
+    }
+    if (flags & HTTP_FLAG_RANGE) {
+        i = http_put_headerrange(self, data + sz, len);
+        len -= i;
+        if (i < 0 || len <= 0) {
             return -1;
         }
         sz += i;
     }
     i = snprintf(data + sz, len, "\r\n");
-    if (i <= 0) {
+    if (i < 0) {
         return -1;
     }
     return sz + i;
@@ -256,9 +310,9 @@ int http_gen_header(struct response_t *self, char *data, int len) {
 int http_gen_errorpage(struct response_t *self, char *data, int len) {
     int sz, i;
 
-    sz = http_gen_defheader(self, data, len);
+    sz = http_put_headercode(self, data, len);
     len -= sz;
-    if (sz <= 0 || len <= 0) {
+    if (sz < 0 || len <= 0) {
         return -1;
     }
     i = snprintf(data + sz, len,
@@ -272,7 +326,8 @@ int http_gen_errorpage(struct response_t *self, char *data, int len) {
             "<html><head><title>%d</title></head><body>"
             "<h1>%d %s</h1><hr />" SERVER_NAME
             "</body></html>",
-            self->status_code, self->status_code, http_string_status(self->status_code));
+            self->status_code, self->status_code,
+            http_string_status(self->status_code));
     if (i <= 0) {
         return -1;
     }
@@ -307,6 +362,8 @@ const char *http_string_status(int code) {
         switch (code) {
         case 200:
             return "OK";
+        case 206:
+            return "Partial Content";
         }
     } else if (code < 400) {        /* 3xx */
         switch (code) {
@@ -316,6 +373,8 @@ const char *http_string_status(int code) {
             return "Moved Temporarily ";
         case 303:
             return "See Other";
+        case 304:
+            return "Not Modified";
         }
     } else if (code < 500) {        /* 4xx */
         switch (code) {
@@ -325,6 +384,8 @@ const char *http_string_status(int code) {
             return "Forbidden";
         case 404:
             return "Not Found";
+        case 416:
+            return "Requested Rage Not Satisfiable";
         }
     } else {
         switch (code) {             /* 5xx */

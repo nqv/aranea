@@ -29,7 +29,7 @@
 #endif
 
 #define MAX_IP_LENGTH           40
-#define MAX_DATE_LENGTH         30      /* */
+#define MAX_DATE_LENGTH         32      /* */
 #define BACKLOG                 10
 #define DATE_FORMAT             "%a, %d %b %Y %H:%M:%S GMT"
 
@@ -48,6 +48,11 @@ enum {
 
 enum {
     FLAG_QUIT                   = 1 << 0,
+};
+
+enum {
+    HTTP_FLAG_CONTENT           = 1 << 0,
+    HTTP_FLAG_RANGE             = 1 << 1,
 };
 
 /**
@@ -69,7 +74,10 @@ struct request_t {
 struct response_t {
     int status_code;
     const char *content_type;
+    off_t total_length;
     off_t content_length;
+    off_t content_from;
+    time_t last_mod;
 };
 
 struct mimetype_t {
@@ -95,7 +103,6 @@ struct client_t {
     ssize_t data_sent;
 
     struct response_t response;
-    off_t file_from;
     off_t file_sent;
 
     struct client_t *next;
@@ -126,12 +133,13 @@ void client_handle_sendfile(struct client_t *self);
 /* http.c */
 int http_parse(struct request_t *self, char *data, int len);
 void http_decode_url(char *url);
-int http_gen_header(struct response_t *self, char *data, int len);
+int http_gen_header(struct response_t *self, char *data, int len,
+        const unsigned int flags);
 int http_gen_errorpage(struct response_t *self, char *data, int len);
 void http_sanitize_url(char *url);
 const char *http_string_status(int code);
 
-/* mimetype */
+/* mimetype.c */
 const char *mimetype_get(const char *filename);
 
 /* global variables */

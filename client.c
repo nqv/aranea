@@ -60,29 +60,28 @@ void client_destroy(struct client_t *self) {
 }
 
 static
-void client_process_get(struct client_t *self) {
+int get_realpath(const char *url, char *path) {
     int len;
-    char path[MAX_PATH_LENGTH];
-    struct stat st;
 
-    http_decode_url(self->request.url);
-    http_sanitize_url(self->request.url);
-    A_LOG("url=%s", self->request.url);
-
-    /* get real path */
     /* snprintf is slower but safer than strcat/strncpy */
     if (g_config.root != NULL) {
-        len = snprintf(path, sizeof(path), "%s%s", g_config.root,
-            self->request.url);
+        len = snprintf(path, MAX_PATH_LENGTH, "%s%s", g_config.root, url);
     } else {                            /* chroot */
-        len = snprintf(path, sizeof(path), "%s", self->request.url);
+        len = snprintf(path, MAX_PATH_LENGTH, "%s", url);
     }
-    if (self->request.url[strlen(self->request.url) - 1] == '/') {
+    if (url[strlen(url) - 1] == '/') {
         /* url/index.html */
-        len = snprintf(path + len, sizeof(path) - len, "%s", WWW_INDEX);
+        len = snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
     }
-    A_LOG("path=%s", path);
-    /* open file */
+    return len;
+}
+
+/** Open and get file information
+ */
+static
+int client_open_file(struct client_t *self, const char *path) {
+    struct stat st;
+
     self->local_fd = open(path, O_RDONLY | O_NONBLOCK);
     if (self->local_fd == -1) {
         A_ERR("open: %s", strerror(errno));
@@ -97,7 +96,7 @@ void client_process_get(struct client_t *self) {
             self->response.status_code = 500;
             break;
         }
-        goto err2;
+        return -1;
     }
     /* get information */
     if (fstat(self->local_fd, &st) == -1) {
@@ -111,33 +110,129 @@ void client_process_get(struct client_t *self) {
         self->response.status_code = 403;
         goto err;
     }
+    self->response.last_mod = st.st_mtime;
+    self->response.total_length = st.st_size;
     self->response.content_length = st.st_size;
     self->response.content_type = mimetype_get(path);
-    self->file_from = 0;
-    self->file_sent = 0;
-    /* generate header */
-    if (self->request.if_mod_since != NULL) {
-        A_LOG("ifmodsince %s", self->request.if_mod_since);
+    self->response.content_from = 0;
+    return 0;
+
+err:
+    close(self->local_fd);
+    self->local_fd = -1;
+    return -1;
+}
+
+static
+int client_check_filemod(struct client_t *self) {
+    char date[MAX_DATE_LENGTH];
+    int len;
+
+    if (self->request.if_mod_since == NULL) {
+        return 1;
     }
-    if (self->request.range_from != NULL || self->request.range_to != NULL) {
-        A_LOG("rangefrom=%s rangeto=%s", self->request.range_from,
-                self->request.range_to);
+    len = strftime(date, sizeof(date), DATE_FORMAT,
+            gmtime(&self->response.last_mod));
+    if (strncmp(self->request.if_mod_since, date, len) == 0) {
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ * Convert FROM-TO to FROM/TOTAL
+ */
+static
+int client_check_filerange(struct client_t *self) {
+    off_t pos;
+
+    A_LOG("rangefrom=%s rangeto=%s", self->request.range_from,
+            self->request.range_to);
+    if (self->request.range_from != NULL) {
+        self->response.content_from = strtol(self->request.range_from, NULL, 10);
+
+        if (self->response.content_from >= self->response.content_length) {
+            goto err;
+        }
+        if (self->request.range_to != NULL) {
+            /* 0-99 = 0/100 */
+            pos = strtol(self->request.range_to, NULL, 10);
+            if (pos < self->response.content_from) {
+                goto err;
+            }
+            self->response.content_length = pos - self->response.content_from + 1;
+        } else {                        /* To is not given */
+            /* 4- = 4/95 */
+            self->response.content_length -= self->response.content_from - 1;
+        }
+    } else {                            /* From is not given */
+        if (self->request.range_to != NULL) {
+            /* -10 = 89/10 */
+            pos = strtol(self->request.range_to, NULL, 10);
+            if (pos >= self->response.content_length) {
+                goto err;
+            }
+            self->response.content_from = self->response.content_length - pos;
+            self->response.content_length = pos;
+        } else {
+            return 1;                   /* not available */
+        }
+    }
+    A_LOG("from=%ld len=%ld", self->response.content_from,
+            self->response.content_length);
+    return 0;
+err:
+    self->response.status_code = 416;
+    return -1;
+}
+
+static
+void client_process_get(struct client_t *self) {
+    int len;
+    char path[MAX_PATH_LENGTH];
+
+    self->data_sent = 0;                /* reset */
+    self->file_sent = 0;
+
+    /* clean up */
+    http_decode_url(self->request.url);
+    http_sanitize_url(self->request.url);
+    A_LOG("url=%s", self->request.url);
+    /* get path in fs */
+    len = get_realpath(self->request.url, path);
+    A_LOG("path=%s", path);
+    /* open file */
+    if (client_open_file(self, path) != 0) {
+        goto err;
+    }
+    /* generate header */
+    if (client_check_filemod(self) == 0) {
+        self->response.status_code = 304;
+        self->data_length = http_gen_header(&self->response, self->data,
+                sizeof(self->data), 0);
+        return;
+    }
+    len = client_check_filerange(self);
+    if (len < 0) {
+        close(self->local_fd);
+        self->local_fd = -1;
+        goto err;
+    }
+    if (len == 0) {
+        self->response.status_code = 206;
+        self->data_length = http_gen_header(&self->response, self->data,
+                sizeof(self->data),
+                HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE);
+        return;
     }
     self->response.status_code = 200;
     self->data_length = http_gen_header(&self->response, self->data,
-            sizeof(self->data));
-    self->data_sent = 0;
+            sizeof(self->data), HTTP_FLAG_CONTENT);
     return;
 
 err:
-    if (self->local_fd != -1) {
-        close(self->local_fd);
-        self->local_fd = -1;
-    }
-err2:
     self->data_length = http_gen_errorpage(&self->response, self->data,
             sizeof(self->data));
-    self->data_sent = 0;
 }
 
 static
@@ -249,7 +344,7 @@ void client_handle_sendfile(struct client_t *self) {
     ssize_t len;
     off_t offset;
 
-    offset = self->file_from + self->file_sent;
+    offset = self->response.content_from + self->file_sent;
     len = sendfile(self->remote_fd, self->local_fd, &offset,
             self->response.content_length - self->file_sent);
     A_LOG("client: %d sendfile %d/%ld", self->remote_fd, len,
