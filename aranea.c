@@ -9,15 +9,28 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <time.h>
+#include <signal.h>
+#include <wait.h>
 #include "aranea.h"
 
 /* global vars */
 time_t g_curtime;
 struct config_t g_config;
+char g_cgienv[MAX_CGIENV_LENGTH];
 
 static struct server_t server_;
 static struct client_t *list_client_ = NULL;
 static unsigned int flags_ = 0;
+
+static
+void handle_signal(int sig) {
+    switch (sig) {
+    case SIGCHLD:
+        /* wait until no more zoombie children */
+        while (waitpid(-1, NULL, WNOHANG) > 0);
+        break;
+    }
+}
 
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \
@@ -53,10 +66,12 @@ void server_poll() {
                 SERVER_SETFD_(c->remote_fd, &rfds, max_rfd);
                 break;
             case STATE_SEND_HEADER:
+            case STATE_SEND_FILE:
+            case STATE_SEND_PIPE:
                 SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
                 break;
-            case STATE_SEND_FILE:
-                SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
+            case STATE_RECV_PIPE:
+                SERVER_SETFD_(c->local_fd, &rfds, max_wfd);
                 break;
             }
         }
@@ -65,7 +80,6 @@ void server_poll() {
         rv = select((max_rfd > max_wfd) ? (max_rfd + 1) : (max_wfd + 1),
                 &rfds, (max_wfd != -1) ? &wfds : NULL,
                 NULL, &timeout);
-        A_LOG("server: select %d", rv);
         if (rv == 0) {
             continue;
         }
@@ -74,6 +88,7 @@ void server_poll() {
             sleep(1);
             continue;
         }
+        A_LOG("server: select %d", rv);
         g_curtime = time(NULL);
         chk_time = g_curtime + CLIENT_TIMEOUT;
         if (FD_ISSET(server_.fd, &rfds)) {
@@ -107,6 +122,18 @@ void server_poll() {
                     client_handle_sendfile(c);
                 }
                 break;
+            case STATE_RECV_PIPE:
+                if (FD_ISSET(c->local_fd, &rfds)) {
+                    c->timeout = chk_time;
+                    client_handle_recvpipe(c);
+                }
+                break;
+            case STATE_SEND_PIPE:
+                if (FD_ISSET(c->remote_fd, &wfds)) {
+                    c->timeout = chk_time;
+                    client_handle_sendpipe(c);
+                }
+                break;
             default:
                 A_LOG("client: %d invalid state %d", c->remote_fd, c->state);
                 c->state = STATE_NONE;
@@ -125,10 +152,20 @@ void server_poll() {
 #undef SERVER_SETFD_
 
 int main(int argc, char **argv) {
+    /* parse arguments */
     if (argc < 2) {
         g_config.root = ".";                /* current dir */
     } else {
         g_config.root = argv[1];
+    }
+    {   /* init signal*/
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = &handle_signal;
+        if (sigaction(SIGCHLD, &sa, NULL) < 0) {
+            A_ERR("sigaction %s", strerror(errno));
+            return 1;
+        }
     }
     server_.port = PORT;
     if (server_init(&server_) != 0) {

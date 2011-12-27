@@ -1,7 +1,7 @@
 PKG = aranea
 DEBUG ?= 0
 
-SRC = aranea.c server.c client.c http.c mimetype.c
+SRC = aranea.c server.c client.c http.c mimetype.c cgi.c
 OBJ = ${SRC:.c=.o}
 
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG

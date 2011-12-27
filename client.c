@@ -124,6 +124,26 @@ err:
 }
 
 static
+int client_check_fileexec(struct client_t *self, const char *path) {
+    struct stat st;
+
+    if (access(path, X_OK) != 0) {
+        self->response.status_code = 403;
+        return -1;
+    }
+    if (stat(path, &st) == -1) {
+        A_ERR("stat: %s", strerror(errno));
+        self->response.status_code = 500;
+        return -1;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        self->response.status_code = 403;
+        return -1;
+    }
+    return 0;
+}
+
+static
 int client_check_filemod(struct client_t *self) {
     char date[MAX_DATE_LENGTH];
     int len;
@@ -187,6 +207,74 @@ err:
 }
 
 static
+void client_process_cgi(struct client_t *self, const char *path) {
+    char *argv[2];
+    char *envp[MAX_CGIENV_ITEM];
+    int fds[2];
+    pid_t pid;
+    int i, o, e;                /* new stdin, stdout, stderr */
+
+    if (client_check_fileexec(self, path) != 0) {
+        goto err;
+    }
+    if (pipe(fds) == -1) {
+        A_ERR("pipe %s", strerror(errno));
+        self->response.status_code = 500;
+        goto err;
+    }
+#if 0
+    /* set socket back to blocking */
+    if (fcntl(self->remote_fd, F_SETFL, 0) == -1) {
+        A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
+        self->response.status_code = 500;
+        goto err;
+    }
+#endif
+    pid = vfork();
+    if (pid < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        self->response.status_code = 500;
+        goto err;
+    }
+    if (pid == 0) {                 /* child */
+        close(fds[0]);
+        /* POST */
+        /* new stdout = pipe[1] */
+        o = fds[1];                 /* write end */
+        e = open("/dev/null", O_WRONLY);
+        if (o != STDOUT_FILENO) {
+            dup2(o, STDOUT_FILENO);
+            close(o);
+        }
+        if (e != STDERR_FILENO) {
+            dup2(e, STDERR_FILENO);
+            close(e);
+        }
+        /* exec */
+        argv[0] = (char *)path;
+        argv[1] = NULL;
+        i = cgi_gen_env(&self->request, envp);
+        envp[i] = NULL;
+        execve(path, argv, envp);
+        _exit(1);                   /* exec error */
+    }
+    /* parent */
+    close(fds[1]);
+    self->local_fd = fds[0];        /* read end */
+    self->response.status_code = 200;
+    /* send minimal header */
+    self->data_length = http_gen_header(&self->response, self->data,
+            sizeof(self->data), 0);
+    A_LOG("minimal cgi header %d", self->data_length);
+    self->flags = CLIENT_FLAG_CGI;
+    return;
+err:
+    self->data_length = http_gen_errorpage(&self->response, self->data,
+            sizeof(self->data));
+}
+
+static
 void client_process_get(struct client_t *self) {
     int len;
     char path[MAX_PATH_LENGTH];
@@ -201,6 +289,9 @@ void client_process_get(struct client_t *self) {
     /* get path in fs */
     len = get_realpath(self->request.url, path);
     A_LOG("path=%s", path);
+    if (is_cgi(path, len)) {
+        return client_process_cgi(self, path);
+    }
     /* open file */
     if (client_open_file(self, path) != 0) {
         goto err;
@@ -222,12 +313,12 @@ void client_process_get(struct client_t *self) {
         self->response.status_code = 206;
         self->data_length = http_gen_header(&self->response, self->data,
                 sizeof(self->data),
-                HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE);
+                HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE | HTTP_FLAG_END);
         return;
     }
     self->response.status_code = 200;
     self->data_length = http_gen_header(&self->response, self->data,
-            sizeof(self->data), HTTP_FLAG_CONTENT);
+            sizeof(self->data), HTTP_FLAG_CONTENT | HTTP_FLAG_END);
     return;
 
 err:
@@ -308,11 +399,13 @@ void client_handle_recvheader(struct client_t *self) {
 void client_handle_sendheader(struct client_t *self) {
     ssize_t len;
 
+#if 0
     if (self->data_length <= 0) {
         A_ERR("client: %d invalid len=%d", self->remote_fd, self->data_length);
         self->state = STATE_NONE;
         return;
     }
+#endif
     len = send(self->remote_fd, self->data + self->data_sent,
                 self->data_length - self->data_sent, 0);
     A_LOG("client: %d send %d/%d", self->remote_fd, len, self->data_length);
@@ -327,17 +420,16 @@ void client_handle_sendheader(struct client_t *self) {
 
     /* check if finish sending header */
     if (self->data_sent >= self->data_length) {
-        A_LOG("client: %d finish sending header", self->remote_fd);
+        self->data_length = self->data_sent = 0;
         if (self->local_fd == -1) {
             self->state = STATE_NONE;
         } else {
-            self->state = STATE_SEND_FILE;
+            self->state = (self->flags & CLIENT_FLAG_CGI)
+                    ? STATE_RECV_PIPE
+                    : STATE_SEND_FILE;
         }
+        A_LOG("client: %d finish sending header, state=%d", self->remote_fd, self->state);
     }
-}
-
-void client_handle_recvfile(struct client_t *self) {
-    (void)self;
 }
 
 void client_handle_sendfile(struct client_t *self) {
@@ -360,6 +452,49 @@ void client_handle_sendfile(struct client_t *self) {
     self->file_sent += len;
     if (self->file_sent >= self->response.content_length) {
         self->state = STATE_NONE;
+    }
+}
+
+void client_handle_recvpipe(struct client_t *self) {
+    self->data_length = read(self->local_fd, self->data, sizeof(self->data));
+    A_LOG("client: %d recvpipe %d", self->remote_fd, self->data_length);
+    if (self->data_length <= 0) {       /* cgi finish */
+        if (self->data_length < 0) {
+            A_ERR("recv %s", strerror(errno));
+        }
+        close(self->local_fd);
+        self->local_fd = -1;
+        self->state = STATE_NONE;
+    } else {
+        self->data_sent = 0;
+        self->state = STATE_SEND_PIPE;
+    }
+}
+
+void client_handle_sendpipe(struct client_t *self) {
+    ssize_t len;
+
+    /* send remaining data */
+    len = send(self->remote_fd, self->data + self->data_sent,
+        self->data_length - self->data_sent, 0);
+    A_LOG("client: %d sendpipe %d/%d", self->remote_fd, len,
+            self->data_length);
+    if (len <= 0) {
+        if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return;
+        }
+        self->state = STATE_NONE;
+        return;
+    }
+    self->data_sent += len;
+
+    if (self->data_sent >= self->data_length) {
+        /* continue reading */
+        if (self->local_fd == -1) {
+            self->state = STATE_NONE;
+        } else {
+            self->state = STATE_RECV_PIPE;
+        }
     }
 }
 

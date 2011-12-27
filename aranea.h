@@ -38,6 +38,8 @@ enum {
     STATE_RECV_HEADER,
     STATE_SEND_HEADER,
     STATE_SEND_FILE,
+    STATE_RECV_PIPE,
+    STATE_SEND_PIPE,
 };
 
 enum {
@@ -51,18 +53,23 @@ enum {
 };
 
 enum {
-    HTTP_FLAG_CONTENT           = 1 << 0,
-    HTTP_FLAG_RANGE             = 1 << 1,
+    HTTP_FLAG_END               = 1 << 0,
+    HTTP_FLAG_CONTENT           = 1 << 1,
+    HTTP_FLAG_RANGE             = 1 << 2,
+};
+
+enum {
+    CLIENT_FLAG_CGI             = 1 << 0,
 };
 
 /**
  * Pointed to request buffer
  */
 struct request_t {
-    char *method;
-    char *url;
+    char *method;               /* required */
+    char *url;                  /* required */
     char *query_string;
-    char *version;
+    char *version;              /* required */
     char *connection;
     char *content_type;
     char *content_length;
@@ -94,7 +101,6 @@ struct client_t {
     int local_fd;       /**< File descriptor */
     time_t timeout;
     int state;
-    int method;
     char ip[MAX_IP_LENGTH];
 
     struct request_t request;
@@ -105,6 +111,7 @@ struct client_t {
     struct response_t response;
     off_t file_sent;
 
+    unsigned int flags;
     struct client_t *next;
     struct client_t **prev;
 };
@@ -129,6 +136,8 @@ void client_handle_recvheader(struct client_t *self);
 void client_handle_sendheader(struct client_t *self);
 void client_handle_recvfile(struct client_t *self);
 void client_handle_sendfile(struct client_t *self);
+void client_handle_recvpipe(struct client_t *self);
+void client_handle_sendpipe(struct client_t *self);
 
 /* http.c */
 int http_parse(struct request_t *self, char *data, int len);
@@ -142,9 +151,14 @@ const char *http_string_status(int code);
 /* mimetype.c */
 const char *mimetype_get(const char *filename);
 
+/* cgi.c */
+int is_cgi(const char *name, const int len);
+int cgi_gen_env(const struct request_t *req, char **env);
+
 /* global variables */
 extern time_t g_curtime;
 extern struct config_t g_config;
+extern char g_cgienv[MAX_CGIENV_LENGTH];
 
 #endif /* ARANEA_H_ */
 

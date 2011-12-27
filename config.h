@@ -11,6 +11,8 @@
 
 #define MAX_REQUEST_LENGTH          1024
 #define MAX_PATH_LENGTH             512         /* PATH_MAX */
+#define MAX_CGIENV_LENGTH           1024
+#define MAX_CGIENV_ITEM             10
 
 #define WWW_INDEX                   "index.html"
 #define PORT                        8080

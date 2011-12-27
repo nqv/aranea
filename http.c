@@ -300,11 +300,14 @@ int http_gen_header(struct response_t *self, char *data, int len,
         }
         sz += i;
     }
-    i = snprintf(data + sz, len, "\r\n");
-    if (i < 0) {
-        return -1;
+    if (flags & HTTP_FLAG_END) {
+        i = snprintf(data + sz, len, "\r\n");
+        if (i < 0) {
+            return -1;
+        }
+        sz += i;
     }
-    return sz + i;
+    return sz;
 }
 
 int http_gen_errorpage(struct response_t *self, char *data, int len) {
@@ -385,7 +388,7 @@ const char *http_string_status(int code) {
         case 404:
             return "Not Found";
         case 416:
-            return "Requested Rage Not Satisfiable";
+            return "Requested Range Not Satisfiable";
         }
     } else {
         switch (code) {             /* 5xx */
