@@ -26,7 +26,6 @@
 
 #define MAX_IP_LENGTH           40
 #define MAX_DATE_LENGTH         32      /* */
-#define BACKLOG                 10
 #define DATE_FORMAT             "%a, %d %b %Y %H:%M:%S GMT"
 
 enum {

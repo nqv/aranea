@@ -59,7 +59,7 @@ int server_init(struct server_t *self) {
     }
     freeaddrinfo(info);
 
-    if (listen(fd, BACKLOG) == -1) {
+    if (listen(fd, MAX_CONN) == -1) {
         close(fd);
         A_ERR("server: listen %s", strerror(errno));
         return -1;

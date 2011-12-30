@@ -26,7 +26,7 @@ static
 void handle_signal(int sig) {
     switch (sig) {
     case SIGCHLD:
-        /* wait until no more zoombie children */
+        /* wait until no more zombie children */
         while (waitpid(-1, NULL, WNOHANG) > 0);
         break;
     case SIGQUIT:
