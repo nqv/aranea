@@ -15,10 +15,6 @@
 #define A_INLINE                inline
 #define A_UNUSED(x)             _ ## x __attribute__((unused))
 #define A_SIZEOF(x)             (sizeof(x) / sizeof((x)[0]))
-#define A_FOREACH(head, var)    \
-    for ((var) = (head); (var) != NULL; (var) = (var)->next)
-#define A_FOREACH_S(head, var, tmp) \
-    for ((var) = (head); ((var) != NULL) && (((tmp) = (var)->next), 1); (var) = (tmp))
 
 #ifdef DEBUG
 # define A_ERR(fmt, ...)        fprintf(stderr, "*%s\t\t" fmt "\n", A_SRC, __VA_ARGS__)
