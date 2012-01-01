@@ -38,18 +38,18 @@ int cgi_gen_env(const struct request_t *req, char **env) {
 
     cnt = 0;
     buf = g_cgienv;
-    CGI_ADD_ENV_(env, cnt, buf, "REQUEST_METHOD=%s", req->method);
-    CGI_ADD_ENV_(env, cnt, buf, "REQUEST_URI=%s", req->url);
+    CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "REQUEST_METHOD", req->method);
+    CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "REQUEST_URI", req->url);
     if (req->query_string) {
-        CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=%s", req->query_string);
+        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "QUERY_STRING", req->query_string);
     } else {
-        CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=");
+        CGI_ADD_ENV_(env, cnt, buf, "%s=", "QUERY_STRING");
     }
     if (req->content_type) {
-        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->content_type);
+        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "CONTENT_TYPE", req->content_type);
     }
     if (req->content_length) {
-        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->content_length);
+        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "CONTENT_LENGTH", req->content_length);
     }
     return cnt;
 }

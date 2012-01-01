@@ -30,11 +30,11 @@
 
 enum {
     STATE_NONE                  = 0,
-    STATE_RECV_HEADER,
-    STATE_SEND_HEADER,
-    STATE_SEND_FILE,
-    STATE_RECV_PIPE,
-    STATE_SEND_PIPE,
+    STATE_RECV_HEADER,          /* read request from socket */
+    STATE_SEND_HEADER,          /* write response to socket */
+    STATE_SEND_FILE,            /* write file to socket */
+    STATE_RECV_PIPE,            /* read from pipe (cgi) */
+    STATE_SEND_PIPE,            /* forward pipe data to socket */
 };
 
 enum {
