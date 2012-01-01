@@ -123,4 +123,141 @@ err:
 }
 #undef SERVER_GETINADDR_
 
+#define SERVER_REMCLIENT_(c)            \
+    do {                                \
+        client_close(c);                \
+        client_remove(c);               \
+        client_destroy(c);              \
+    } while (0)
+#define SERVER_SETFD_(fd, set, max)     \
+    do {                                \
+        FD_SET(fd, set);                \
+        if (fd > max) {                 \
+            max = fd;                   \
+        }                               \
+    } while (0)
+void server_poll(struct server_t *self) {
+    fd_set rfds, wfds;
+    int max_rfd, max_wfd;
+    int num_fd;
+    time_t chk_time;
+    struct timeval timeout;
+    struct client_t *c, *tc;
+
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    max_rfd = max_wfd = -1;
+    SERVER_SETFD_(self->fd, &rfds, max_rfd);
+
+    g_curtime = time(NULL);
+    for (c = g_listclient; c != NULL; ) {
+        if (g_curtime > c->timeout) {
+            A_LOG("client: timedout %d", c->remote_fd);
+            tc = c;
+            c = c->next;
+            SERVER_REMCLIENT_(tc);
+            continue;
+        }
+        switch (c->state) {
+        case STATE_RECV_HEADER:
+            SERVER_SETFD_(c->remote_fd, &rfds, max_rfd);
+            break;
+        case STATE_SEND_HEADER:
+        case STATE_SEND_FILE:
+        case STATE_SEND_PIPE:
+            SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
+            break;
+        case STATE_RECV_PIPE:
+            SERVER_SETFD_(c->local_fd, &rfds, max_wfd);
+            break;
+        }
+        c = c->next;
+    }
+    timeout.tv_sec = SERVER_TIMEOUT;
+    timeout.tv_usec = 0;
+    num_fd = select((max_rfd > max_wfd) ? (max_rfd + 1) : (max_wfd + 1),
+            &rfds, (max_wfd != -1) ? &wfds : NULL,
+            NULL, &timeout);
+    if (num_fd == 0) {
+        return;
+    }
+    if (num_fd == -1) {
+        A_ERR("server: select %s", strerror(errno));
+        sleep(1);
+        return;
+    }
+    A_LOG("server: select %d", num_fd);
+    g_curtime = time(NULL);
+    chk_time = g_curtime + CLIENT_TIMEOUT;
+    if (FD_ISSET(self->fd, &rfds)) {
+        c = server_accept(self);
+        if (c != NULL) {
+            client_add(c, &g_listclient);
+            c->timeout = chk_time;
+            client_handle_recvheader(c);
+            if (c->state == STATE_NONE) {
+                SERVER_REMCLIENT_(c);
+            }
+        }
+        --num_fd;
+    }
+    for (c = g_listclient; num_fd > 0 && c != NULL; ) {
+        A_LOG("client: %d state=%d", c->remote_fd, c->state);
+        switch (c->state) {
+        case STATE_NONE:
+            break;
+        case STATE_RECV_HEADER:
+            if (FD_ISSET(c->remote_fd, &rfds)) {
+                c->timeout = chk_time;
+                client_handle_recvheader(c);
+                --num_fd;
+            }
+            break;
+        case STATE_SEND_HEADER:
+            if (FD_ISSET(c->remote_fd, &wfds)) {
+                c->timeout = chk_time;
+                client_handle_sendheader(c);
+                --num_fd;
+            }
+            break;
+        case STATE_SEND_FILE:
+            if (FD_ISSET(c->remote_fd, &wfds)) {
+                c->timeout = chk_time;
+                client_handle_sendfile(c);
+                --num_fd;
+            }
+            break;
+        case STATE_RECV_PIPE:
+            if (FD_ISSET(c->local_fd, &rfds)) {
+                c->timeout = chk_time;
+                client_handle_recvpipe(c);
+                --num_fd;
+            }
+            break;
+        case STATE_SEND_PIPE:
+            if (FD_ISSET(c->remote_fd, &wfds)) {
+                c->timeout = chk_time;
+                client_handle_sendpipe(c);
+                --num_fd;
+            }
+            break;
+        default:
+            A_LOG("client: %d invalid state %d", c->remote_fd, c->state);
+            c->state = STATE_NONE;
+            break;
+        }
+        if (c->state == STATE_NONE) {
+            A_LOG("server: close %d", c->remote_fd);
+            /* finished connection */
+            struct client_t *tc = c;
+            c = c->next;
+            SERVER_REMCLIENT_(tc);
+        } else {
+            c = c->next;
+        }
+    }
+}
+#undef SERVER_REMCLIENT_
+#undef SERVER_SETFD_
+
 /* vim: set ts=4 sw=4 expandtab: */

@@ -120,6 +120,7 @@ struct server_t {
 /* server.c */
 int server_init(struct server_t *self);
 struct client_t *server_accept(struct server_t *self);
+void server_poll(struct server_t *self);
 
 /* client.c */
 struct client_t *client_new();
@@ -154,6 +155,7 @@ int cgi_gen_env(const struct request_t *req, char **env);
 extern time_t g_curtime;
 extern struct config_t g_config;
 extern char g_cgienv[MAX_CGIENV_LENGTH];
+extern struct client_t *g_listclient;
 
 #endif /* ARANEA_H_ */
 
