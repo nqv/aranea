@@ -46,7 +46,8 @@ int main(int argc, char **argv) {
         struct sigaction sa;
         memset(&sa, 0, sizeof(sa));
         sa.sa_handler = &handle_signal;
-        if (sigaction(SIGCHLD, &sa, NULL) < 0) {
+        if (sigaction(SIGCHLD, &sa, NULL) < 0
+                || sigaction(SIGQUIT, &sa, NULL) < 0) {
             A_ERR("sigaction %s", strerror(errno));
             return 1;
         }
