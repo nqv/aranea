@@ -77,6 +77,7 @@ int get_realpath(const char *url, char *path) {
 }
 
 /** Open and get file information
+ * Set response.status_code on error.
  */
 static
 int client_open_file(struct client_t *self, const char *path) {
@@ -123,6 +124,9 @@ err:
     return -1;
 }
 
+/**
+ * Set response.status_code on error.
+ */
 static
 int client_check_fileexec(struct client_t *self, const char *path) {
     struct stat st;
@@ -161,6 +165,7 @@ int client_check_filemod(struct client_t *self) {
 
 /**
  * Convert FROM-TO to FROM/TOTAL
+ * Set response.status_code on error.
  */
 static
 int client_check_filerange(struct client_t *self) {
@@ -207,7 +212,7 @@ err:
 }
 
 static
-void client_process_cgi(struct client_t *self, const char *path) {
+int client_process_cgi(struct client_t *self, const char *path) {
     char *argv[2];
     char *envp[MAX_CGIENV_ITEM];
     int fds[2];
@@ -217,14 +222,14 @@ void client_process_cgi(struct client_t *self, const char *path) {
     if (pipe(fds) == -1) {
         A_ERR("pipe %s", strerror(errno));
         self->response.status_code = 500;
-        goto err;
+        return -1;
     }
 #if 0
     /* set socket back to blocking */
     if (fcntl(self->remote_fd, F_SETFL, 0) == -1) {
         A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
         self->response.status_code = 500;
-        goto err;
+        return -1;
     }
 #endif
     pid = vfork();
@@ -232,7 +237,7 @@ void client_process_cgi(struct client_t *self, const char *path) {
         close(fds[0]);
         close(fds[1]);
         self->response.status_code = 500;
-        goto err;
+        return -1;
     }
     if (pid == 0) {                 /* child */
         close(fds[0]);
@@ -265,14 +270,14 @@ void client_process_cgi(struct client_t *self, const char *path) {
             sizeof(self->data), 0);
     A_LOG("minimal cgi header %d", self->data_length);
     self->flags = CLIENT_FLAG_CGI;
-    return;
-err:
-    self->data_length = http_gen_errorpage(&self->response, self->data,
-            sizeof(self->data));
+    return 0;
 }
 
+/**
+ * Response header is generated if ok.
+ */
 static
-void client_process_get(struct client_t *self, const int header_only) {
+int client_process_get(struct client_t *self, const int header_only) {
     int len;
     char path[MAX_PATH_LENGTH];
 
@@ -285,40 +290,39 @@ void client_process_get(struct client_t *self, const int header_only) {
     A_LOG("path=%s", path);
     if (is_cgi(path, len)) {
         if (client_check_fileexec(self, path) != 0) {
-            goto err;
+            return -1;
         }
         if (header_only) {
             self->response.status_code = 200;
             self->data_length = http_gen_header(&self->response, self->data,
                     sizeof(self->data), HTTP_FLAG_END);
-        } else {
-            client_process_cgi(self, path);
+            return 0;
         }
-        return;
+        return client_process_cgi(self, path);
     }
     /* open file */
     if (client_open_file(self, path) != 0) {
-        goto err;
+        return -1;
     }
     /* generate header */
     if (client_check_filemod(self) == 0) {
         self->response.status_code = 304;
         self->data_length = http_gen_header(&self->response, self->data,
                 sizeof(self->data), 0);
-        return;
+        return 0;
     }
     len = client_check_filerange(self);
     if (len < 0) {
         close(self->local_fd);
         self->local_fd = -1;
-        goto err;
+        return -1;
     }
     if (len == 0) {
         self->response.status_code = 206;
         self->data_length = http_gen_header(&self->response, self->data,
                 sizeof(self->data),
                 HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE | HTTP_FLAG_END);
-        return;
+        return 0;
     }
     if (header_only) {
         if (self->local_fd != -1) {
@@ -329,38 +333,38 @@ void client_process_get(struct client_t *self, const int header_only) {
     self->response.status_code = 200;
     self->data_length = http_gen_header(&self->response, self->data,
             sizeof(self->data), HTTP_FLAG_CONTENT | HTTP_FLAG_END);
-    return;
-
-err:
-    self->data_length = http_gen_errorpage(&self->response, self->data,
-            sizeof(self->data));
+    return 0;
 }
 
 static
-void client_process_post(struct client_t *self) {
+int client_process_post(struct client_t *self) {
     (void)self;
+    return 0;
 }
 
 /** Parse header and set state for the client
  */
 static
 void client_process(struct client_t *self) {
-#if 0
-    memset(&self->request, 0, sizeof(self->request));
-    memset(&self->response, 0, sizeof(self->response));
-#endif
+    int ret;
     if (http_parse(&self->request, self->data, self->data_length) != 0
             || self->request.method == NULL || self->request.url == NULL
             || self->request.version == NULL) {
         self->response.status_code = 400;
+        ret = -1;
     } else if (strcmp(self->request.method, "GET") == 0) {
-        client_process_get(self, 0);
+        ret = client_process_get(self, 0);
     } else if (strcmp(self->request.method, "HEAD") == 0) {
-        client_process_get(self, 1);
+        ret = client_process_get(self, 1);
     } else if (strcmp(self->request.method, "POST") == 0) {
-        client_process_post(self);
+        ret = client_process_post(self);
     } else {
         self->response.status_code = 400;
+        ret = -1;
+    }
+    if (ret != 0) {
+        self->data_length = http_gen_errorpage(&self->response, self->data,
+                sizeof(self->data));
     }
     /* always reply header */
     self->state = STATE_SEND_HEADER;
