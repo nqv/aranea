@@ -356,8 +356,42 @@ void http_decode_url(char *url) {
     *out = '\0';
 }
 
+/** Make url safe
+ * Do not allow file start with '.'.
+ * Replace "/\.+" to "/"
+ */
 void http_sanitize_url(char *url) {
-    (void)url;
+    char *out;
+    char c;
+
+    out = url;
+    for (;;) {
+        c = *url;
+        switch (c) {
+        case '/':
+            if (out != url) {
+                *out = '/';
+            }
+            ++out;
+            ++url;
+            while ('.' == *url) {
+                ++url;
+            }
+            break;
+        case '\0':
+            if (out != url) {
+                *out = '\0';
+            }
+            return;
+        default:
+            if (out != url) {
+                *out = c;
+            }
+            ++out;
+            ++url;
+            break;
+        }
+    }
 }
 
 const char *http_string_status(int code) {
