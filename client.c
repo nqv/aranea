@@ -43,20 +43,19 @@ void client_close(struct client_t *self) {
     }
 }
 
-struct client_t *client_new() {
-    struct client_t *self;
-    self = calloc(1, sizeof(struct client_t));
-    if (self == NULL) {
-        A_ERR("malloc %d", sizeof(struct client_t));
-        return NULL;
-    }
+/** Reset client to initial state
+ */
+void client_reset(struct client_t *self) {
     self->remote_fd = -1;
     self->local_fd = -1;
-    return self;
-}
-
-void client_destroy(struct client_t *self) {
-    free(self);
+    self->ip[0] = '\0';
+    self->data_length = 0;
+    self->data_sent = 0;
+    self->file_sent = 0;
+    self->state = STATE_NONE;
+    self->flags = 0;
+    memset(&self->request, 0, sizeof(self->request));
+    memset(&self->response, 0, sizeof(self->response));
 }
 
 static

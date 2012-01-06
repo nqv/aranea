@@ -370,7 +370,7 @@ void http_sanitize_url(char *url) {
         switch (c) {
         case '/':
             if (out != url) {
-                *out = '/';
+                *out = c;
             }
             ++out;
             ++url;
@@ -380,7 +380,7 @@ void http_sanitize_url(char *url) {
             break;
         case '\0':
             if (out != url) {
-                *out = '\0';
+                *out = c;
             }
             return;
         default:

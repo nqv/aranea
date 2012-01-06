@@ -4,7 +4,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -107,10 +106,11 @@ struct client_t *server_accept(struct server_t *self) {
         }
 #endif
     }
-    c = client_new();
+    c = alloc_client();
     if (c == NULL) {
         goto err;
     }
+    client_reset(c);
     /* save client information */
     c->remote_fd = fd;
     c->state = STATE_RECV_HEADER;
@@ -127,7 +127,7 @@ err:
     do {                                \
         client_close(c);                \
         client_remove(c);               \
-        client_destroy(c);              \
+        detach_client(c);               \
     } while (0)
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \

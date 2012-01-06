@@ -124,7 +124,7 @@ void server_poll(struct server_t *self);
 
 /* client.c */
 struct client_t *client_new();
-void client_destroy(struct client_t *self);
+void client_reset(struct client_t *self);
 void client_add(struct client_t *self, struct client_t **list);
 void client_remove(struct client_t *self);
 void client_close(struct client_t *self);
@@ -150,6 +150,9 @@ const char *mimetype_get(const char *filename);
 /* cgi.c */
 int is_cgi(const char *name, const int len);
 int cgi_gen_env(const struct request_t *req, char **env);
+
+struct client_t *alloc_client();
+void detach_client(struct client_t *cli);
 
 /* global variables */
 extern time_t g_curtime;
