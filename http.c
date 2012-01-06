@@ -421,6 +421,8 @@ const char *http_string_status(int code) {
             return "Forbidden";
         case 404:
             return "Not Found";
+        case 413:
+            return "Request Entity Too Large";
         case 416:
             return "Requested Range Not Satisfiable";
         }

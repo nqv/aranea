@@ -128,6 +128,7 @@ err:
     return -1;
 }
 
+#if HAVE_CGI == 1
 /**
  * Set response.status_code on error.
  */
@@ -150,6 +151,7 @@ int client_check_fileexec(struct client_t *self, const char *path) {
     }
     return 0;
 }
+#endif  /* HAVE_CGI */
 
 static
 int client_check_filemod(struct client_t *self) {
@@ -215,6 +217,7 @@ err:
     return -1;
 }
 
+#if HAVE_CGI == 1
 static
 int client_process_cgi(struct client_t *self, const char *path) {
     char *argv[2];
@@ -236,7 +239,11 @@ int client_process_cgi(struct client_t *self, const char *path) {
         return -1;
     }
 #endif
+#if HAVE_VFORK == 1
     pid = vfork();
+#else
+    pid = fork();
+#endif  /* HAVE_VFORK */
     if (pid < 0) {
         close(fds[0]);
         close(fds[1]);
@@ -286,6 +293,7 @@ int client_process_cgi(struct client_t *self, const char *path) {
     self->flags = CLIENT_FLAG_CGI;
     return 0;
 }
+#endif  /* HAVE_CGI */
 
 /**
  * Response header is generated if ok.
@@ -302,6 +310,7 @@ int client_process_get(struct client_t *self, const int header_only) {
     /* get path in fs */
     len = get_realpath(self->request.url, path);
     A_LOG("path=%s", path);
+#if HAVE_CGI == 1
     if (is_cgi(path, len)) {
         if (client_check_fileexec(self, path) != 0) {
             return -1;
@@ -314,6 +323,7 @@ int client_process_get(struct client_t *self, const int header_only) {
         }
         return client_process_cgi(self, path);
     }
+#endif  /* HAVE_CGI */
     /* open file */
     if (client_open_file(self, path) != 0) {
         return -1;
@@ -348,11 +358,13 @@ int client_process_get(struct client_t *self, const int header_only) {
     return 0;
 }
 
+#if HAVE_HTTPPOST == 1
 static
 int client_process_post(struct client_t *self) {
     (void)self;
     return 0;
 }
+#endif  /* HAVE_HTTPPOST */
 
 /** Parse header and set state for the client
  */
@@ -368,10 +380,12 @@ void client_process(struct client_t *self) {
         ret = client_process_get(self, 0);
     } else if (strcmp(self->request.method, "HEAD") == 0) {
         ret = client_process_get(self, 1);
+#if HAVE_HTTPPOST == 1
     } else if (strcmp(self->request.method, "POST") == 0) {
         ret = client_process_post(self);
+#endif  /* HAVE_HTTPPOST */
     } else {
-        self->response.status_code = 400;
+        self->response.status_code = 501;
         ret = -1;
     }
     if (ret != 0) {
@@ -402,16 +416,17 @@ void client_handle_recvheader(struct client_t *self) {
     self->data_length += len;
     /* check header termination */
     if (self->data_length > 4) {
-        if (memcmp(&self->data[self->data_length - 4], "\r\n\r\n", 4) == 0) {
+        /* compare last 4 chars */
+        if (memcmp(&self->data[self->data_length - 4], "\r\n\r\n", 4) == 0
+                || memcmp(&self->data[self->data_length - 2], "\n\n", 2) == 0) {
             client_process(self);
+        } else if (self->data_length >= MAX_REQUEST_LENGTH) {
+            /* not found */
+            self->response.status_code = 413;
+            self->data_length = http_gen_errorpage(&self->response, self->data,
+                    sizeof(self->data));
+            self->state = STATE_SEND_HEADER;
         }
-    } else if (self->data_length > 2) {
-        if (memcmp(&self->data[self->data_length - 2], "\n\n", 2) == 0) {
-            client_process(self);
-        }
-    }
-    if (len >= MAX_REQUEST_LENGTH) {
-        self->state = STATE_SEND_HEADER;
     }
     if (self->state == STATE_SEND_HEADER) {
         client_handle_sendheader(self);
