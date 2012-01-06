@@ -159,6 +159,7 @@ extern time_t g_curtime;
 extern struct config_t g_config;
 extern char g_cgienv[MAX_CGIENV_LENGTH];
 extern struct client_t *g_listclient;
+extern struct server_t g_server;
 
 #endif /* ARANEA_H_ */
 

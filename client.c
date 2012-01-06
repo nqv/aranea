@@ -244,7 +244,17 @@ int client_process_cgi(struct client_t *self, const char *path) {
         return -1;
     }
     if (pid == 0) {                 /* child */
-        close(fds[0]);
+        {   /* close unused fds */
+            struct client_t *c;
+            close(fds[0]);
+            close(g_server.fd);
+            for (c = g_listclient; c != NULL; c = c->next) {
+                close(c->remote_fd);
+                if (c->local_rfd != -1) {
+                    close(c->local_rfd);
+                }
+            }
+        }
         /* TODO: pipe POST and close all other sockets */
         /* new stdout = pipe[1] */
         o = fds[1];                 /* write end */

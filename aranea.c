@@ -19,8 +19,8 @@ time_t g_curtime;
 struct config_t g_config;
 char g_cgienv[MAX_CGIENV_LENGTH];
 struct client_t *g_listclient = NULL;
+struct server_t g_server;
 
-static struct server_t server_;
 /* save allocated clients to reduce number of malloc call */
 struct client_t *poolclient_ = NULL;
 int poolclient_len_ = 0;
@@ -98,13 +98,13 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-    server_.port = PORT;
-    if (server_init(&server_) != 0) {
+    g_server.port = PORT;
+    if (server_init(&g_server) != 0) {
         return 1;
     }
     /* main loop */
     while (!(flags_ & FLAG_QUIT)) {
-        server_poll(&server_);
+        server_poll(&g_server);
     }
     cleanup();
     return 0;
