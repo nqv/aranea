@@ -93,7 +93,7 @@ struct config_t {
 
 struct client_t {
     int remote_fd;      /**< Socket descriptor */
-    int local_fd;       /**< File descriptor */
+    int local_rfd;      /**< Reading file/pipe descriptor */
     time_t timeout;
     int state;
     char ip[MAX_IP_LENGTH];

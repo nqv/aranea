@@ -16,6 +16,12 @@
 #include <sys/sendfile.h>
 #include "aranea.h"
 
+#define CLIENT_CLOSEFD_(fd)     \
+    do {                        \
+        close(fd);              \
+        fd = -1;                \
+    } while (0)
+
 void client_add(struct client_t *self, struct client_t **list) {
     if (*list == NULL) {
         self->next = NULL;
@@ -36,10 +42,10 @@ void client_remove(struct client_t *self) {
 
 void client_close(struct client_t *self) {
     if (self->remote_fd != -1) {
-        close(self->remote_fd);
+        CLIENT_CLOSEFD_(self->remote_fd);
     }
-    if (self->local_fd != -1) {
-        close(self->local_fd);
+    if (self->local_rfd != -1) {
+        CLIENT_CLOSEFD_(self->local_rfd);
     }
 }
 
@@ -47,7 +53,7 @@ void client_close(struct client_t *self) {
  */
 void client_reset(struct client_t *self) {
     self->remote_fd = -1;
-    self->local_fd = -1;
+    self->local_rfd = -1;
     self->ip[0] = '\0';
     self->data_length = 0;
     self->data_sent = 0;
@@ -82,8 +88,8 @@ static
 int client_open_file(struct client_t *self, const char *path) {
     struct stat st;
 
-    self->local_fd = open(path, O_RDONLY | O_NONBLOCK);
-    if (self->local_fd == -1) {
+    self->local_rfd = open(path, O_RDONLY | O_NONBLOCK);
+    if (self->local_rfd == -1) {
         A_ERR("open: %s", strerror(errno));
         switch (errno) {
         case EACCES:
@@ -99,7 +105,7 @@ int client_open_file(struct client_t *self, const char *path) {
         return -1;
     }
     /* get information */
-    if (fstat(self->local_fd, &st) == -1) {
+    if (fstat(self->local_rfd, &st) == -1) {
         A_ERR("stat: %s", strerror(errno));
         self->response.status_code = 500;
         goto err;
@@ -118,8 +124,7 @@ int client_open_file(struct client_t *self, const char *path) {
     return 0;
 
 err:
-    close(self->local_fd);
-    self->local_fd = -1;
+    CLIENT_CLOSEFD_(self->local_rfd);
     return -1;
 }
 
@@ -262,7 +267,7 @@ int client_process_cgi(struct client_t *self, const char *path) {
     }
     /* parent */
     close(fds[1]);
-    self->local_fd = fds[0];        /* read end */
+    self->local_rfd = fds[0];       /* read end */
     self->response.status_code = 200;
     /* send minimal header */
     self->data_length = http_gen_header(&self->response, self->data,
@@ -312,8 +317,7 @@ int client_process_get(struct client_t *self, const int header_only) {
     }
     len = client_check_filerange(self);
     if (len < 0) {
-        close(self->local_fd);
-        self->local_fd = -1;
+        CLIENT_CLOSEFD_(self->local_rfd);
         return -1;
     }
     if (len == 0) {
@@ -324,9 +328,8 @@ int client_process_get(struct client_t *self, const int header_only) {
         return 0;
     }
     if (header_only) {
-        if (self->local_fd != -1) {
-            close(self->local_fd);
-            self->local_fd = -1;
+        if (self->local_rfd != -1) {
+            CLIENT_CLOSEFD_(self->local_rfd);
         }
     }
     self->response.status_code = 200;
@@ -432,7 +435,7 @@ void client_handle_sendheader(struct client_t *self) {
     /* check if finish sending header */
     if (self->data_sent >= self->data_length) {
         self->data_length = self->data_sent = 0;
-        if (self->local_fd == -1) {
+        if (self->local_rfd == -1) {
             self->state = STATE_NONE;
         } else {
             self->state = (self->flags & CLIENT_FLAG_CGI)
@@ -449,7 +452,7 @@ void client_handle_sendfile(struct client_t *self) {
     off_t offset;
 
     offset = self->response.content_from + self->file_sent;
-    len = sendfile(self->remote_fd, self->local_fd, &offset,
+    len = sendfile(self->remote_fd, self->local_rfd, &offset,
             self->response.content_length - self->file_sent);
     A_LOG("client: %d sendfile %d/%ld", self->remote_fd, len,
             self->response.content_length);
@@ -468,14 +471,13 @@ void client_handle_sendfile(struct client_t *self) {
 }
 
 void client_handle_recvpipe(struct client_t *self) {
-    self->data_length = read(self->local_fd, self->data, sizeof(self->data));
+    self->data_length = read(self->local_rfd, self->data, sizeof(self->data));
     A_LOG("client: %d recvpipe %d", self->remote_fd, self->data_length);
     if (self->data_length <= 0) {       /* cgi finish */
         if (self->data_length < 0) {
             A_ERR("recv %s", strerror(errno));
         }
-        close(self->local_fd);
-        self->local_fd = -1;
+        CLIENT_CLOSEFD_(self->local_rfd);
         self->state = STATE_NONE;
     } else {
         self->data_sent = 0;
@@ -502,12 +504,14 @@ void client_handle_sendpipe(struct client_t *self) {
 
     if (self->data_sent >= self->data_length) {
         /* continue reading */
-        if (self->local_fd == -1) {
+        if (self->local_rfd == -1) {
             self->state = STATE_NONE;
         } else {
             self->state = STATE_RECV_PIPE;
         }
     }
 }
+
+#undef CLIENT_CLOSEFD_
 
 /* vim: set ts=4 sw=4 expandtab: */

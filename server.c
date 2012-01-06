@@ -168,7 +168,7 @@ void server_poll(struct server_t *self) {
             SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
             break;
         case STATE_RECV_PIPE:
-            SERVER_SETFD_(c->local_fd, &rfds, max_wfd);
+            SERVER_SETFD_(c->local_rfd, &rfds, max_wfd);
             break;
         }
         c = c->next;
@@ -228,7 +228,7 @@ void server_poll(struct server_t *self) {
             }
             break;
         case STATE_RECV_PIPE:
-            if (FD_ISSET(c->local_fd, &rfds)) {
+            if (FD_ISSET(c->local_rfd, &rfds)) {
                 c->timeout = chk_time;
                 client_handle_recvpipe(c);
                 --num_fd;
