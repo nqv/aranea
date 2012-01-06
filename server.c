@@ -202,7 +202,6 @@ void server_poll(struct server_t *self) {
         --num_fd;
     }
     for (c = g_listclient; num_fd > 0 && c != NULL; ) {
-        A_LOG("client: %d state=%d", c->remote_fd, c->state);
         switch (c->state) {
         case STATE_NONE:
             break;
@@ -247,7 +246,6 @@ void server_poll(struct server_t *self) {
             break;
         }
         if (c->state == STATE_NONE) {
-            A_LOG("server: close %d", c->remote_fd);
             /* finished connection */
             struct client_t *tc = c;
             c = c->next;

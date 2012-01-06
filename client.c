@@ -90,7 +90,7 @@ int client_open_file(struct client_t *self, const char *path) {
 
     self->local_rfd = open(path, O_RDONLY | O_NONBLOCK);
     if (self->local_rfd == -1) {
-        A_ERR("open: %s", strerror(errno));
+        A_ERR("open: %s %s", path, strerror(errno));
         switch (errno) {
         case EACCES:
             self->response.status_code = 403;
@@ -306,7 +306,6 @@ int client_process_get(struct client_t *self, const int header_only) {
     /* clean up */
     http_decode_url(self->request.url);
     http_sanitize_url(self->request.url);
-    A_LOG("url=%s", self->request.url);
     /* get path in fs */
     len = get_realpath(self->request.url, path);
     A_LOG("path=%s", path);
@@ -403,11 +402,10 @@ void client_handle_recvheader(struct client_t *self) {
 
     len = recv(self->remote_fd, self->data + self->data_length,
             sizeof(self->data) - self->data_length, 0);
-    A_LOG("client: recv %d", len);
     if (len <= 0) {
         if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             /* retry later */
-            A_LOG("client: recv blocked %d", self->remote_fd);
+            A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
             return;
         }
         self->state = STATE_NONE;
@@ -447,8 +445,8 @@ void client_handle_sendheader(struct client_t *self) {
 #endif
     len = send(self->remote_fd, self->data + self->data_sent,
                 self->data_length - self->data_sent, 0);
-    A_LOG("client: %d send %d/%d", self->remote_fd, len, self->data_length);
     if (len <= 0) {
+        A_LOG("client: %d send %s", self->remote_fd, strerror(errno));
         if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             return;
         }
@@ -479,8 +477,6 @@ void client_handle_sendfile(struct client_t *self) {
     offset = self->response.content_from + self->file_sent;
     len = sendfile(self->remote_fd, self->local_rfd, &offset,
             self->response.content_length - self->file_sent);
-    A_LOG("client: %d sendfile %d/%ld", self->remote_fd, len,
-            self->response.content_length);
     if (len <= 0) {
         if (len == -1 && errno == EAGAIN) {
             A_LOG("client: %d sendfile blocked", self->remote_fd);
@@ -497,8 +493,8 @@ void client_handle_sendfile(struct client_t *self) {
 
 void client_handle_recvpipe(struct client_t *self) {
     self->data_length = read(self->local_rfd, self->data, sizeof(self->data));
-    A_LOG("client: %d recvpipe %d", self->remote_fd, self->data_length);
     if (self->data_length <= 0) {       /* cgi finish */
+        A_LOG("client: %d recvpipe %s", self->remote_fd, strerror(errno));
         if (self->data_length < 0) {
             A_ERR("recv %s", strerror(errno));
         }
@@ -516,9 +512,8 @@ void client_handle_sendpipe(struct client_t *self) {
     /* send remaining data */
     len = send(self->remote_fd, self->data + self->data_sent,
         self->data_length - self->data_sent, 0);
-    A_LOG("client: %d sendpipe %d/%d", self->remote_fd, len,
-            self->data_length);
     if (len <= 0) {
+        A_LOG("client: %d sendpipe %s", self->remote_fd, strerror(errno));
         if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             return;
         }

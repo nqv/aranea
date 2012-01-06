@@ -35,7 +35,6 @@ struct client_t *alloc_client() {
         cli = poolclient_;
         client_remove(cli);
         --poolclient_len_;
-        A_LOG("cached client %d", poolclient_len_);
     } else {
         cli = malloc(sizeof(struct client_t));
     }
