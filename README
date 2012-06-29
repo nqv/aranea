@@ -20,3 +20,8 @@ To achieve these goals, Aranea is not fully compliant with any specifications :)
 * Features will not be supported:
 - Directory listing
 - Other platforms
+
+Compile
+-------
+$ make
+$ ./aranea /path/to/www 8080 

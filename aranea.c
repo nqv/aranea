@@ -18,7 +18,6 @@
 time_t g_curtime;
 struct config_t g_config;
 char g_cgienv[MAX_CGIENV_LENGTH];
-struct client_t *g_listclient = NULL;
 struct server_t g_server;
 
 /* save allocated clients to reduce number of malloc call */
@@ -67,7 +66,7 @@ static
 void cleanup() {
     struct client_t *c, *tc;
 
-    for (c = g_listclient; c != NULL; ) {
+    for (c = g_server.clients; c != NULL; ) {
         tc = c;
         c = c->next;
         client_close(tc);

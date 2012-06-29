@@ -1,5 +1,12 @@
 PKG = aranea
-DEBUG ?= 0
+
+DEBUG       ?= 0
+# Use vfork (uClinux)
+VFORK       ?= 1
+# Support CGI
+CGI         ?= 1
+# Support HTTP POST
+HTTPPOST    ?= 0
 
 SRC = aranea.c server.c client.c http.c mimetype.c cgi.c
 OBJ = ${SRC:.c=.o}
@@ -13,6 +20,15 @@ ifeq (${DEBUG},1)
 CFLAGS += ${CFLAGS_DEBUG}
 else
 CFLAGS += ${CFLAGS_NDEBUG}
+endif
+ifeq (${VFORK},1)
+CFLAGS += -DHAVE_VFORK=1
+endif
+ifeq (${CGI},1)
+CFLAGS += -DHAVE_CGI=1
+endif
+ifeq (${HTTPPOST},1)
+CFLAGS += -DHAVE_HTTPPOST=1
 endif
 
 all: options ${PKG}

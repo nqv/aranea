@@ -251,17 +251,9 @@ int client_process_cgi(struct client_t *self, const char *path) {
         return -1;
     }
     if (pid == 0) {                 /* child */
-        {   /* close unused fds */
-            struct client_t *c;
-            close(fds[0]);
-            close(g_server.fd);
-            for (c = g_listclient; c != NULL; c = c->next) {
-                close(c->remote_fd);
-                if (c->local_rfd != -1) {
-                    close(c->local_rfd);
-                }
-            }
-        }
+        /* close unused fds */
+        close(fds[0]);
+        server_close_fds();
         /* TODO: pipe POST and close all other sockets */
         /* new stdout = pipe[1] */
         o = fds[1];                 /* write end */
@@ -289,7 +281,7 @@ int client_process_cgi(struct client_t *self, const char *path) {
     /* send minimal header */
     self->data_length = http_gen_header(&self->response, self->data,
             sizeof(self->data), 0);
-    A_LOG("minimal cgi header %d", self->data_length);
+    A_LOG("minimal cgi header %d", (int)self->data_length);
     self->flags = CLIENT_FLAG_CGI;
     return 0;
 }

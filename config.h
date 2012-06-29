@@ -24,11 +24,6 @@
 #define CGI_EXT                     ".cgi"
 #define INDEX_NAME                  "index.html"
 
-/* features supported */
-#define HAVE_VFORK                  1           /* use vfork */
-#define HAVE_CGI                    1
-#define HAVE_HTTPPOST               1           /* support HTTP POST */
-
 #endif /* ARANEA_CONFIG_H_ */
 
 /* vim: set ts=4 sw=4 expandtab: */

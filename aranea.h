@@ -121,6 +121,7 @@ struct server_t {
 int server_init(struct server_t *self);
 struct client_t *server_accept(struct server_t *self);
 void server_poll(struct server_t *self);
+void server_close_fds();
 
 /* client.c */
 struct client_t *client_new();

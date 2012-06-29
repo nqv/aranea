@@ -150,7 +150,7 @@ void server_poll(struct server_t *self) {
     SERVER_SETFD_(self->fd, &rfds, max_rfd);
 
     g_curtime = time(NULL);
-    for (c = g_listclient; c != NULL; ) {
+    for (c = self->clients; c != NULL; ) {
         if (g_curtime > c->timeout) {
             A_LOG("client: timedout %d", c->remote_fd);
             tc = c;
@@ -192,7 +192,7 @@ void server_poll(struct server_t *self) {
     if (FD_ISSET(self->fd, &rfds)) {
         c = server_accept(self);
         if (c != NULL) {
-            client_add(c, &g_listclient);
+            client_add(c, &self->clients);
             c->timeout = chk_time;
             client_handle_recvheader(c);
             if (c->state == STATE_NONE) {
@@ -201,7 +201,7 @@ void server_poll(struct server_t *self) {
         }
         --num_fd;
     }
-    for (c = g_listclient; num_fd > 0 && c != NULL; ) {
+    for (c = self->clients; num_fd > 0 && c != NULL; ) {
         switch (c->state) {
         case STATE_NONE:
             break;
@@ -255,6 +255,22 @@ void server_poll(struct server_t *self) {
         }
     }
 }
+
+/** Close all "unused" FDs
+ * Called in child process after forked.
+ */
+void server_close_fds() {
+    struct client_t *c;
+
+    close(g_server.fd);
+    for (c = g_server.clients; c != NULL; c = c->next) {
+        close(c->remote_fd);
+        if (c->local_rfd != -1) {
+            close(c->local_rfd);
+        }
+    }
+}
+
 #undef SERVER_REMCLIENT_
 #undef SERVER_SETFD_
 
