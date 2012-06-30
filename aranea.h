@@ -55,6 +55,8 @@ enum {
 
 enum {
     CLIENT_FLAG_CGI             = 1 << 0,
+    CLIENT_FLAG_HEADERONLY      = 1 << 1,
+    CLIENT_FLAG_POST            = 1 << 2,
 };
 
 /**

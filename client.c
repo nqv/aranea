@@ -93,13 +93,13 @@ int client_open_file(struct client_t *self, const char *path) {
         A_ERR("open: %s %s", path, strerror(errno));
         switch (errno) {
         case EACCES:
-            self->response.status_code = 403;
+            self->response.status_code = 403;   /* Forbidden */
             break;
         case ENOENT:
-            self->response.status_code = 404;
+            self->response.status_code = 404;   /* Not found */
             break;
         default:
-            self->response.status_code = 500;
+            self->response.status_code = 500;   /* Server error */
             break;
         }
         return -1;
@@ -107,13 +107,13 @@ int client_open_file(struct client_t *self, const char *path) {
     /* get information */
     if (fstat(self->local_rfd, &st) == -1) {
         A_ERR("stat: %s", strerror(errno));
-        self->response.status_code = 500;
+        self->response.status_code = 500;       /* Server error */
         goto err;
     }
     /* make sure it's a regular file */
     if (S_ISDIR(st.st_mode) || !S_ISREG(st.st_mode)) {
         A_ERR("not a regular file 0x%x", st.st_mode);
-        self->response.status_code = 403;
+        self->response.status_code = 403;       /* Forbidden */
         goto err;
     }
     self->response.last_mod = st.st_mtime;
@@ -137,16 +137,16 @@ int client_check_fileexec(struct client_t *self, const char *path) {
     struct stat st;
 
     if (access(path, X_OK) != 0) {
-        self->response.status_code = 403;
+        self->response.status_code = 403;       /* Forbidden */
         return -1;
     }
     if (stat(path, &st) == -1) {
         A_ERR("stat: %s", strerror(errno));
-        self->response.status_code = 500;
+        self->response.status_code = 500;       /* Server error */
         return -1;
     }
     if (S_ISDIR(st.st_mode)) {
-        self->response.status_code = 403;
+        self->response.status_code = 403;       /* Forbidden */
         return -1;
     }
     return 0;
@@ -192,11 +192,11 @@ int client_check_filerange(struct client_t *self) {
                 goto err;
             }
             self->response.content_length = pos - self->response.content_from + 1;
-        } else {                        /* To is not given */
+        } else {                                /* To is not given */
             /* 4- = 4/95 */
             self->response.content_length -= self->response.content_from - 1;
         }
-    } else {                            /* From is not given */
+    } else {                                    /* From is not given */
         if (self->request.range_to != NULL) {
             /* -10 = 89/10 */
             pos = strtol(self->request.range_to, NULL, 10);
@@ -206,14 +206,14 @@ int client_check_filerange(struct client_t *self) {
             self->response.content_from = self->response.content_length - pos;
             self->response.content_length = pos;
         } else {
-            return 1;                   /* not available */
+            return 1;                           /* not available */
         }
     }
     A_LOG("from=%ld len=%ld", self->response.content_from,
             self->response.content_length);
     return 0;
 err:
-    self->response.status_code = 416;
+    self->response.status_code = 416;           /* Range not satisfiable */
     return -1;
 }
 
@@ -247,16 +247,16 @@ int client_process_cgi(struct client_t *self, const char *path) {
     if (pid < 0) {
         close(fds[0]);
         close(fds[1]);
-        self->response.status_code = 500;
+        self->response.status_code = 500;       /* Server error */
         return -1;
     }
-    if (pid == 0) {                 /* child */
+    if (pid == 0) {                             /* child */
         /* close unused fds */
         close(fds[0]);
         server_close_fds();
         /* TODO: pipe POST and close all other sockets */
         /* new stdout = pipe[1] */
-        o = fds[1];                 /* write end */
+        o = fds[1];                             /* write end */
         e = open("/dev/null", O_WRONLY);
         if (o != STDOUT_FILENO) {
             dup2(o, STDOUT_FILENO);
@@ -272,11 +272,11 @@ int client_process_cgi(struct client_t *self, const char *path) {
         i = cgi_gen_env(&self->request, envp);
         envp[i] = NULL;
         execve(path, argv, envp);
-        _exit(1);                   /* exec error */
+        _exit(1);                               /* exec error */
     }
     /* parent */
     close(fds[1]);
-    self->local_rfd = fds[0];       /* read end */
+    self->local_rfd = fds[0];                   /* read end */
     self->response.status_code = 200;
     /* send minimal header */
     self->data_length = http_gen_header(&self->response, self->data,
@@ -291,7 +291,7 @@ int client_process_cgi(struct client_t *self, const char *path) {
  * Response header is generated if ok.
  */
 static
-int client_process_get(struct client_t *self, const int header_only) {
+int client_process_stage2(struct client_t *self) {
     int len;
     char path[MAX_PATH_LENGTH];
 
@@ -306,8 +306,8 @@ int client_process_get(struct client_t *self, const int header_only) {
         if (client_check_fileexec(self, path) != 0) {
             return -1;
         }
-        if (header_only) {
-            self->response.status_code = 200;
+        if (self->flags & CLIENT_FLAG_HEADERONLY) {
+            self->response.status_code = 200;   /* Ok */
             self->data_length = http_gen_header(&self->response, self->data,
                     sizeof(self->data), HTTP_FLAG_END);
             return 0;
@@ -321,7 +321,7 @@ int client_process_get(struct client_t *self, const int header_only) {
     }
     /* generate header */
     if (client_check_filemod(self) == 0) {
-        self->response.status_code = 304;
+        self->response.status_code = 304;       /* Not modified */
         self->data_length = http_gen_header(&self->response, self->data,
                 sizeof(self->data), 0);
         return 0;
@@ -332,30 +332,22 @@ int client_process_get(struct client_t *self, const int header_only) {
         return -1;
     }
     if (len == 0) {
-        self->response.status_code = 206;
+        self->response.status_code = 206;       /* Partial content */
         self->data_length = http_gen_header(&self->response, self->data,
                 sizeof(self->data),
                 HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE | HTTP_FLAG_END);
         return 0;
     }
-    if (header_only) {
+    if (self->flags & CLIENT_FLAG_HEADERONLY) {
         if (self->local_rfd != -1) {
             CLIENT_CLOSEFD_(self->local_rfd);
         }
     }
-    self->response.status_code = 200;
+    self->response.status_code = 200;           /* Ok */
     self->data_length = http_gen_header(&self->response, self->data,
             sizeof(self->data), HTTP_FLAG_CONTENT | HTTP_FLAG_END);
     return 0;
 }
-
-#if HAVE_HTTPPOST == 1
-static
-int client_process_post(struct client_t *self) {
-    (void)self;
-    return 0;
-}
-#endif  /* HAVE_HTTPPOST */
 
 /** Parse header and set state for the client
  */
@@ -365,18 +357,20 @@ void client_process(struct client_t *self) {
     if (http_parse(&self->request, self->data, self->data_length) != 0
             || self->request.method == NULL || self->request.url == NULL
             || self->request.version == NULL) {
-        self->response.status_code = 400;
+        self->response.status_code = 400;       /* Bad request */
         ret = -1;
     } else if (strcmp(self->request.method, "GET") == 0) {
-        ret = client_process_get(self, 0);
+        ret = client_process_stage2(self);
     } else if (strcmp(self->request.method, "HEAD") == 0) {
-        ret = client_process_get(self, 1);
+        self->flags |= CLIENT_FLAG_HEADERONLY;
+        ret = client_process_stage2(self);
 #if HAVE_HTTPPOST == 1
     } else if (strcmp(self->request.method, "POST") == 0) {
-        ret = client_process_post(self);
+        self->flags |= CLIENT_FLAG_POST;
+        ret = client_process_stage2(self);
 #endif  /* HAVE_HTTPPOST */
     } else {
-        self->response.status_code = 501;
+        self->response.status_code = 501;       /* Not implemented */
         ret = -1;
     }
     if (ret != 0) {
@@ -412,7 +406,7 @@ void client_handle_recvheader(struct client_t *self) {
             client_process(self);
         } else if (self->data_length >= MAX_REQUEST_LENGTH) {
             /* not found */
-            self->response.status_code = 413;
+            self->response.status_code = 413;   /* Entity too large */
             self->data_length = http_gen_errorpage(&self->response, self->data,
                     sizeof(self->data));
             self->state = STATE_SEND_HEADER;
@@ -484,18 +478,21 @@ void client_handle_sendfile(struct client_t *self) {
 }
 
 void client_handle_recvpipe(struct client_t *self) {
-    self->data_length = read(self->local_rfd, self->data, sizeof(self->data));
-    if (self->data_length <= 0) {       /* cgi finish */
+    ssize_t len;
+
+    len = read(self->local_rfd, self->data, sizeof(self->data));
+    if (len <= 0) {       /* cgi finish */
         A_LOG("client: %d recvpipe %s", self->remote_fd, strerror(errno));
-        if (self->data_length < 0) {
+        if (len < 0) {
             A_ERR("recv %s", strerror(errno));
         }
         CLIENT_CLOSEFD_(self->local_rfd);
         self->state = STATE_NONE;
-    } else {
-        self->data_sent = 0;
-        self->state = STATE_SEND_PIPE;
+        return;
     }
+    self->data_length = len;
+    self->data_sent = 0;
+    self->state = STATE_SEND_PIPE;
 }
 
 void client_handle_sendpipe(struct client_t *self) {
