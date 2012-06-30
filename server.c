@@ -164,11 +164,7 @@ void server_poll(struct server_t *self) {
             break;
         case STATE_SEND_HEADER:
         case STATE_SEND_FILE:
-        case STATE_SEND_PIPE:
             SERVER_SETFD_(c->remote_fd, &wfds, max_wfd);
-            break;
-        case STATE_RECV_PIPE:
-            SERVER_SETFD_(c->local_rfd, &rfds, max_wfd);
             break;
         }
         c = c->next;
@@ -178,12 +174,12 @@ void server_poll(struct server_t *self) {
     num_fd = select((max_rfd > max_wfd) ? (max_rfd + 1) : (max_wfd + 1),
             &rfds, (max_wfd != -1) ? &wfds : NULL,
             NULL, &timeout);
-    if (num_fd == 0) {
-        return;
-    }
-    if (num_fd == -1) {
-        A_ERR("server: select %s", strerror(errno));
-        sleep(1);
+    if (num_fd <= 0) {
+        /* Ignore Interrupted system call */
+        if (num_fd == -1 && errno != EINTR) {
+            A_ERR("server: select %s", strerror(errno));
+            sleep(1);
+        }
         return;
     }
     A_LOG("server: select %d", num_fd);
@@ -194,6 +190,7 @@ void server_poll(struct server_t *self) {
         if (c != NULL) {
             client_add(c, &self->clients);
             c->timeout = chk_time;
+            /* Read header straightway */
             client_handle_recvheader(c);
             if (c->state == STATE_NONE) {
                 SERVER_REMCLIENT_(c);
@@ -226,20 +223,6 @@ void server_poll(struct server_t *self) {
                 --num_fd;
             }
             break;
-        case STATE_RECV_PIPE:
-            if (FD_ISSET(c->local_rfd, &rfds)) {
-                c->timeout = chk_time;
-                client_handle_recvpipe(c);
-                --num_fd;
-            }
-            break;
-        case STATE_SEND_PIPE:
-            if (FD_ISSET(c->remote_fd, &wfds)) {
-                c->timeout = chk_time;
-                client_handle_sendpipe(c);
-                --num_fd;
-            }
-            break;
         default:
             A_LOG("client: %d invalid state %d", c->remote_fd, c->state);
             c->state = STATE_NONE;
@@ -259,12 +242,14 @@ void server_poll(struct server_t *self) {
 /** Close all "unused" FDs
  * Called in child process after forked.
  */
-void server_close_fds() {
+void server_close_fds(int except) {
     struct client_t *c;
 
     close(g_server.fd);
     for (c = g_server.clients; c != NULL; c = c->next) {
-        close(c->remote_fd);
+        if (c->remote_fd != except) {
+            close(c->remote_fd);
+        }
         if (c->local_rfd != -1) {
             close(c->local_rfd);
         }

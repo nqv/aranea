@@ -33,8 +33,6 @@ enum {
     STATE_RECV_HEADER,          /* read request from socket */
     STATE_SEND_HEADER,          /* write response to socket */
     STATE_SEND_FILE,            /* write file to socket */
-    STATE_RECV_PIPE,            /* read from pipe (cgi) */
-    STATE_SEND_PIPE,            /* forward pipe data to socket */
 };
 
 enum {
@@ -54,9 +52,8 @@ enum {
 };
 
 enum {
-    CLIENT_FLAG_CGI             = 1 << 0,
-    CLIENT_FLAG_HEADERONLY      = 1 << 1,
-    CLIENT_FLAG_POST            = 1 << 2,
+    CLIENT_FLAG_HEADERONLY      = 1 << 0,
+    CLIENT_FLAG_POST            = 1 << 1,
 };
 
 /**
@@ -123,7 +120,7 @@ struct server_t {
 int server_init(struct server_t *self);
 struct client_t *server_accept(struct server_t *self);
 void server_poll(struct server_t *self);
-void server_close_fds();
+void server_close_fds(int except);
 
 /* client.c */
 struct client_t *client_new();
@@ -133,10 +130,7 @@ void client_remove(struct client_t *self);
 void client_close(struct client_t *self);
 void client_handle_recvheader(struct client_t *self);
 void client_handle_sendheader(struct client_t *self);
-void client_handle_recvfile(struct client_t *self);
 void client_handle_sendfile(struct client_t *self);
-void client_handle_recvpipe(struct client_t *self);
-void client_handle_sendpipe(struct client_t *self);
 
 /* http.c */
 int http_parse(struct request_t *self, char *data, int len);

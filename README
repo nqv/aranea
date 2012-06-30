@@ -24,4 +24,8 @@ To achieve these goals, Aranea is not fully compliant with any specifications :)
 Compile
 -------
 $ make
-$ ./aranea /path/to/www 8080 
+$ ./aranea /path/to/www 8080
+
+Test
+----
+$ printf "GET /index.html HTTP/1.0\r\n\r\n" | nc localhost 8080

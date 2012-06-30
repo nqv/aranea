@@ -394,6 +394,35 @@ void http_sanitize_url(char *url) {
     }
 }
 
+int http_find_headerend(const char *data, int len) {
+    int sz = 0;
+    const char *crlf = data;
+
+    for (;;) {
+        crlf = memchr(crlf, '\n', len - sz);
+        if (crlf == NULL) {
+            break;
+        }
+        sz = crlf - data;
+        if (sz > 0 && sz <= (len - 3) && *(crlf - 1) == '\r'
+                && *(crlf + 1) == '\r' && *(crlf + 2) == '\n') {
+            /* \r\n\r\n */
+            return sz + 2;
+        }
+        if (sz <= (len - 1) && *(crlf + 1) == '\n') {
+            /* \n\n */
+            return sz + 1;
+        }
+        /* continue */
+        ++crlf;
+        ++sz;
+        if (sz >= len) {
+            break;
+        }
+    }
+    return -1;
+}
+
 const char *http_string_status(int code) {
     if (code < 300) {               /* 2xx */
         switch (code) {
