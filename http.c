@@ -394,7 +394,10 @@ void http_sanitize_url(char *url) {
     }
 }
 
-int http_find_headerend(const char *data, int len) {
+/** Find the length of request header by looking for the header termination
+ * (\r\n\r\n or \n\n)
+ */
+int http_find_headerlength(const char *data, int len) {
     int sz = 0;
     const char *crlf = data;
 
@@ -407,11 +410,11 @@ int http_find_headerend(const char *data, int len) {
         if (sz > 0 && sz <= (len - 3) && *(crlf - 1) == '\r'
                 && *(crlf + 1) == '\r' && *(crlf + 2) == '\n') {
             /* \r\n\r\n */
-            return sz + 2;
+            return sz + 3;
         }
         if (sz <= (len - 1) && *(crlf + 1) == '\n') {
             /* \n\n */
-            return sz + 1;
+            return sz + 2;
         }
         /* continue */
         ++crlf;

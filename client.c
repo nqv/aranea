@@ -251,15 +251,18 @@ int client_process_cgi(struct client_t *self, const char *path) {
         if (send(self->remote_fd, self->data, self->data_length, 0) < 0) {
             _exit(1);
         }
-        /* Tie CGI's stdout to the socket & close unused FDs */
-        if (self->remote_fd != STDOUT_FILENO) {
-            if (dup2(self->remote_fd, STDOUT_FILENO) < 0) {
+        /* Tie CGI's stdin to the socket */
+        if (self->flags & CLIENT_FLAG_POST) {
+            if (dup2(self->remote_fd, STDIN_FILENO) < 0) {
                 _exit(1);
             }
-            server_close_fds(-1);
-        } else {
-            server_close_fds(self->remote_fd);
         }
+        /* Tie CGI's stdout to the socket */
+        if (dup2(self->remote_fd, STDOUT_FILENO) < 0) {
+            _exit(1);
+        }
+        /* close unused FDs */
+        server_close_fds();
         /* No error log */
         newio = open("/dev/null", O_WRONLY);
         if (newio != STDERR_FILENO) {
@@ -293,6 +296,7 @@ int client_process_stage2(struct client_t *self) {
     /* get path in fs */
     len = get_realpath(self->request.url, path);
     A_LOG("path=%s", path);
+
 #if HAVE_CGI == 1
     if (is_cgi(path, len)) {
         if (client_check_fileexec(self, path) != 0) {
@@ -308,6 +312,7 @@ int client_process_stage2(struct client_t *self) {
         return client_process_cgi(self, path);
     }
 #endif  /* HAVE_CGI */
+
     /* open file */
     if (client_open_file(self, path) != 0) {
         return -1;
@@ -381,32 +386,51 @@ void client_process(struct client_t *self) {
 void client_handle_recvheader(struct client_t *self) {
     ssize_t len;
 
-    len = recv(self->remote_fd, self->data + self->data_length,
-            sizeof(self->data) - self->data_length, 0);
-    if (len <= 0) {
-        if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            /* retry later */
-            A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
+    /* Just peek the data to find the end of the header */
+    if (self->request.header_length <= 0) {
+        len = recv(self->remote_fd, self->data, sizeof(self->data), MSG_PEEK);
+        if (len <= 0) {
+            if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                /* retry later */
+                A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
+            } else {
+                self->state = STATE_NONE;
+            }
             return;
         }
-        self->state = STATE_NONE;
-        return;
-    }
-    self->data_length += len;
-    /* check header termination */
-    if (self->data_length > 4) {
-        /* compare last 4 chars */
-        if (memcmp(&self->data[self->data_length - 4], "\r\n\r\n", 4) == 0
-                || memcmp(&self->data[self->data_length - 2], "\n\n", 2) == 0) {
-            client_process(self);
-        } else if (self->data_length >= MAX_REQUEST_LENGTH) {
-            /* not found */
-            self->response.status_code = 413;   /* Entity too large */
-            self->data_length = http_gen_errorpage(&self->response, self->data,
-                    sizeof(self->data));
-            self->state = STATE_SEND_HEADER;
+        /* Check header termination */
+        if (len > 4) {
+            self->request.header_length = http_find_headerlength(self->data, len);
+            if (self->request.header_length < 0) {
+                /* Not found, check if data size is too large */
+                if (len >= MAX_REQUEST_LENGTH) {
+                    self->response.status_code = 413;   /* Entity too large */
+                    self->data_length = http_gen_errorpage(&self->response,
+                            self->data, sizeof(self->data));
+                    self->state = STATE_SEND_HEADER;
+                }
+            }
         }
     }
+    /* Already peeked, pull data from the socket until reaching this position */
+    if (self->request.header_length > 0) {
+        len = recv(self->remote_fd, self->data + self->data_length,
+                self->request.header_length - self->data_length, 0);
+        if (len <= 0) {
+            if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                /* retry later */
+                A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
+            } else {
+                self->state = STATE_NONE;
+            }
+            return;
+        }
+        self->data_length += len;
+        if (self->data_length >= self->request.header_length) {
+            client_process(self);
+        }
+    }
+    /* Should not wait until next server loop to process this request */
     if (self->state == STATE_SEND_HEADER) {
         client_handle_sendheader(self);
     }

@@ -242,14 +242,12 @@ void server_poll(struct server_t *self) {
 /** Close all "unused" FDs
  * Called in child process after forked.
  */
-void server_close_fds(int except) {
+void server_close_fds() {
     struct client_t *c;
 
     close(g_server.fd);
     for (c = g_server.clients; c != NULL; c = c->next) {
-        if (c->remote_fd != except) {
-            close(c->remote_fd);
-        }
+        close(c->remote_fd);
         if (c->local_rfd != -1) {
             close(c->local_rfd);
         }

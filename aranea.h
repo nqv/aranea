@@ -36,12 +36,6 @@ enum {
 };
 
 enum {
-    METHOD_GET                  = 0,
-    METHOD_HEAD,
-    METHOD_POST,
-};
-
-enum {
     FLAG_QUIT                   = 1 << 0,
 };
 
@@ -70,6 +64,7 @@ struct request_t {
     char *range_from;
     char *range_to;
     char *if_mod_since;
+    ssize_t header_length;
 };
 
 struct response_t {
@@ -120,7 +115,7 @@ struct server_t {
 int server_init(struct server_t *self);
 struct client_t *server_accept(struct server_t *self);
 void server_poll(struct server_t *self);
-void server_close_fds(int except);
+void server_close_fds();
 
 /* client.c */
 struct client_t *client_new();
@@ -139,6 +134,7 @@ int http_gen_header(struct response_t *self, char *data, int len,
         const unsigned int flags);
 int http_gen_errorpage(struct response_t *self, char *data, int len);
 void http_sanitize_url(char *url);
+int http_find_headerlength(const char *data, int len);
 const char *http_string_status(int code);
 
 /* mimetype.c */

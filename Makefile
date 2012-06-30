@@ -6,7 +6,7 @@ VFORK       ?= 1
 # Support CGI
 CGI         ?= 1
 # Support HTTP POST
-HTTPPOST    ?= 0
+HTTPPOST    ?= 1
 
 SRC = aranea.c server.c client.c http.c mimetype.c cgi.c
 OBJ = ${SRC:.c=.o}
