@@ -64,6 +64,8 @@ void http_save_header(struct request_t *self, char *key, char *val) {
         http_parse_range(self, val);
     } else if (strcasecmp(key, "If-Modified-Since") == 0) {
         self->if_mod_since = val;
+    } else if (strcasecmp(key, "Cookie") == 0) {
+        self->cookie = val;
     } else {
         A_LOG("header: %s %s", key, val);
     }

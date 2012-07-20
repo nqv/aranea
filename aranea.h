@@ -64,6 +64,7 @@ struct request_t {
     char *range_from;
     char *range_to;
     char *if_mod_since;
+    char *cookie;
     ssize_t header_length;
 };
 

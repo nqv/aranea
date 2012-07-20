@@ -40,14 +40,17 @@ int cgi_gen_env(const struct request_t *req, char **env) {
     buf = g_cgienv;
     CGI_ADD_ENV_(env, cnt, buf, "REQUEST_METHOD=%s", req->method);
     CGI_ADD_ENV_(env, cnt, buf, "REQUEST_URI=%s", req->url);
-    CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=%s",
-            (req->query_string) ? req->query_string : "");
-
+    if (req->query_string) {
+        CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=%s", req->query_string);
+    }
     if (req->content_type) {
         CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->content_type);
     }
     if (req->content_length) {
         CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->content_length);
+    }
+    if (req->cookie) {
+        CGI_ADD_ENV_(env, cnt, buf, "HTTP_COOKIE=%s", req->cookie);
     }
     *env = NULL;
     return cnt;
