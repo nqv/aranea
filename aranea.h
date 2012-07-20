@@ -29,6 +29,24 @@
 #define DATE_FORMAT             "%a, %d %b %Y %H:%M:%S GMT"
 
 enum {
+    /* 2xx */
+    HTTP_STATUS_OK              = 200,
+    HTTP_STATUS_PARTIALCONTENT  = 206,
+    /* 3xx */
+    HTTP_STATUS_MOVEDPERMANENTLY = 301,
+    HTTP_STATUS_NOTMODIFIED     = 304,
+    /* 4xx */
+    HTTP_STATUS_BADREQUEST      = 400,
+    HTTP_STATUS_FORBIDDEN       = 403,
+    HTTP_STATUS_NOTFOUND        = 404,
+    HTTP_STATUS_ENTITYTOOLARGE  = 413,
+    HTTP_STATUS_RANGENOTSATISFIABLE = 416,
+    /* 5xx */
+    HTTP_STATUS_SERVERERROR     = 500,
+    HTTP_STATUS_NOTIMPLEMENTED  = 501,
+};
+
+enum {
     STATE_NONE                  = 0,
     STATE_RECV_HEADER,          /* read request from socket */
     STATE_SEND_HEADER,          /* write response to socket */

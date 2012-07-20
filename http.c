@@ -431,40 +431,40 @@ int http_find_headerlength(const char *data, int len) {
 const char *http_string_status(int code) {
     if (code < 300) {               /* 2xx */
         switch (code) {
-        case 200:
+        case HTTP_STATUS_OK:
             return "OK";
-        case 206:
+        case HTTP_STATUS_PARTIALCONTENT:
             return "Partial Content";
         }
     } else if (code < 400) {        /* 3xx */
         switch (code) {
-        case 301:
+        case HTTP_STATUS_MOVEDPERMANENTLY:
             return "Moved Permanently";
         case 302:
             return "Moved Temporarily ";
         case 303:
             return "See Other";
-        case 304:
+        case HTTP_STATUS_NOTMODIFIED:
             return "Not Modified";
         }
     } else if (code < 500) {        /* 4xx */
         switch (code) {
-        case 400:
+        case HTTP_STATUS_BADREQUEST:
             return "Bad Request";
-        case 403:
+        case HTTP_STATUS_FORBIDDEN:
             return "Forbidden";
-        case 404:
+        case HTTP_STATUS_NOTFOUND:
             return "Not Found";
-        case 413:
+        case HTTP_STATUS_ENTITYTOOLARGE:
             return "Request Entity Too Large";
-        case 416:
+        case HTTP_STATUS_RANGENOTSATISFIABLE:
             return "Requested Range Not Satisfiable";
         }
     } else {
         switch (code) {             /* 5xx */
-        case 500:
+        case HTTP_STATUS_SERVERERROR:
             return "Server Error";
-        case 501:
+        case HTTP_STATUS_NOTIMPLEMENTED:
             return "Not Implemented";
         }
     }
