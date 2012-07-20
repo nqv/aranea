@@ -365,11 +365,9 @@ void client_process(struct client_t *self) {
     } else if (strcmp(self->request.method, "HEAD") == 0) {
         self->flags |= CLIENT_FLAG_HEADERONLY;
         ret = client_process_stage2(self);
-#if HAVE_HTTPPOST == 1
     } else if (strcmp(self->request.method, "POST") == 0) {
         self->flags |= CLIENT_FLAG_POST;
         ret = client_process_stage2(self);
-#endif  /* HAVE_HTTPPOST */
     } else {
         self->response.status_code = 501;       /* Not implemented */
         ret = -1;
