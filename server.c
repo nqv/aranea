@@ -169,20 +169,28 @@ void server_poll(struct server_t *self) {
         }
         c = c->next;
     }
+    /* Poll timeout (to check quit flag) */
     timeout.tv_sec = SERVER_TIMEOUT;
     timeout.tv_usec = 0;
-    num_fd = select((max_rfd > max_wfd) ? (max_rfd + 1) : (max_wfd + 1),
-            &rfds, (max_wfd != -1) ? &wfds : NULL,
-            NULL, &timeout);
-    if (num_fd <= 0) {
-        /* Ignore Interrupted system call */
-        if (num_fd == -1 && errno != EINTR) {
-            A_ERR("server: select %s", strerror(errno));
-            sleep(1);
+    for (;;) {
+        num_fd = select((max_rfd > max_wfd) ? (max_rfd + 1) : (max_wfd + 1),
+                &rfds, (max_wfd != -1) ? &wfds : NULL,
+                NULL, &timeout);
+        if (num_fd > 0) {
+            break;
+        }
+        if (num_fd < 0) {
+            /* Ignore Interrupted system call which caused by ending of a
+               child process */
+            if (errno == EINTR) {
+                continue;
+            } else {
+                A_ERR("server: select %s", strerror(errno));
+                sleep(1);
+            }
         }
         return;
     }
-    A_LOG("server: select %d", num_fd);
     g_curtime = time(NULL);
     chk_time = g_curtime + CLIENT_TIMEOUT;
     if (FD_ISSET(self->fd, &rfds)) {
