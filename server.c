@@ -254,7 +254,4 @@ void server_close_fds() {
     }
 }
 
-#undef SERVER_REMCLIENT_
-#undef SERVER_SETFD_
-
 /* vim: set ts=4 sw=4 expandtab: */

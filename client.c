@@ -227,7 +227,6 @@ int client_process_cgi(struct client_t *self, const char *path) {
 
     /* set socket back to blocking */
     newio = fcntl(self->remote_fd, F_GETFL, NULL);
-    A_LOG("socket flag %x", newio & (~O_NONBLOCK));
     if (newio == -1
             || fcntl(self->remote_fd, F_SETFL, newio & (~O_NONBLOCK)) == -1) {
         A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
@@ -244,6 +243,9 @@ int client_process_cgi(struct client_t *self, const char *path) {
         return -1;
     }
     if (pid == 0) {                             /* child */
+        /* Generate CGI parameters before touching to the buffer */
+        cgi_gen_env(&self->request, envp);
+
         /* Send minimal header */
         self->response.status_code = 200;
         self->data_length = http_gen_header(&self->response, self->data,
@@ -272,7 +274,6 @@ int client_process_cgi(struct client_t *self, const char *path) {
         /* Execute cgi script */
         argv[0] = (char *)path;
         argv[1] = NULL;
-        envp[cgi_gen_env(&self->request, envp)] = NULL;
         execve(path, argv, envp);
         _exit(1);                               /* exec error */
     }
@@ -295,7 +296,6 @@ int client_process_stage2(struct client_t *self) {
     http_sanitize_url(self->request.url);
     /* get path in fs */
     len = get_realpath(self->request.url, path);
-    A_LOG("path=%s", path);
 
 #if HAVE_CGI == 1
     if (is_cgi(path, len)) {
@@ -484,7 +484,5 @@ void client_handle_sendfile(struct client_t *self) {
         self->state = STATE_NONE;
     }
 }
-
-#undef CLIENT_CLOSEFD_
 
 /* vim: set ts=4 sw=4 expandtab: */

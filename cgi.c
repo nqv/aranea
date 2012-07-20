@@ -16,43 +16,41 @@ int is_cgi(const char *name, const int len) {
     }
     return 0;
 }
-#undef CGI_EXT_LEN_
 
 #define CGI_ADD_ENV_(env, cnt, buf, ...)                            \
     do {                                                            \
-        int len;                                                    \
         *env = buf;                                                 \
-        len = snprintf(buf, sizeof(g_cgienv) - (buf - g_cgienv),    \
-                __VA_ARGS__);                                       \
-        buf += len;                                                 \
-        ++env;                                                      \
-        ++cnt;                                                      \
+        len = sizeof(g_cgienv) - (buf - g_cgienv);                  \
+        if (len > 0) {                                              \
+            len = snprintf(buf, len, __VA_ARGS__);                  \
+            buf += len + 1; /* skip NULL */                         \
+            ++env;                                                  \
+            ++cnt;                                                  \
+        }                                                           \
     } while (0)
 
 /**
  * Data are saved in g_cgienv
  */
 int cgi_gen_env(const struct request_t *req, char **env) {
-    int cnt;
+    int cnt, len;
     char *buf;
 
     cnt = 0;
     buf = g_cgienv;
-    CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "REQUEST_METHOD", req->method);
-    CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "REQUEST_URI", req->url);
-    if (req->query_string) {
-        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "QUERY_STRING", req->query_string);
-    } else {
-        CGI_ADD_ENV_(env, cnt, buf, "%s=", "QUERY_STRING");
-    }
+    CGI_ADD_ENV_(env, cnt, buf, "REQUEST_METHOD=%s", req->method);
+    CGI_ADD_ENV_(env, cnt, buf, "REQUEST_URI=%s", req->url);
+    CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=%s",
+            (req->query_string) ? req->query_string : "");
+
     if (req->content_type) {
-        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "CONTENT_TYPE", req->content_type);
+        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->content_type);
     }
     if (req->content_length) {
-        CGI_ADD_ENV_(env, cnt, buf, "%s=%s", "CONTENT_LENGTH", req->content_length);
+        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->content_length);
     }
+    *env = NULL;
     return cnt;
 }
-#undef CGI_ADD_ENV_
 
 /* vim: set ts=4 sw=4 expandtab: */
