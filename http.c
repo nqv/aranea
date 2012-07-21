@@ -9,7 +9,7 @@
 #include <time.h>
 #include "aranea.h"
 
-static A_INLINE
+static
 int hex_to_int(const char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';

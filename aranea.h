@@ -12,7 +12,6 @@
 #define A_QUOTE(x)              #x
 #define A_TOSTR(x)              A_QUOTE(x)
 #define A_SRC                   __FILE__ ":" A_TOSTR(__LINE__)
-#define A_INLINE                inline
 #define A_UNUSED(x)             _ ## x __attribute__((unused))
 #define A_SIZEOF(x)             (sizeof(x) / sizeof((x)[0]))
 
