@@ -209,8 +209,7 @@ int http_put_headerdate(char *data, int len) {
     return strftime(data, len, "Date: " DATE_FORMAT "\r\n", tm);
 }
 
-/** Build HTTP header
- * @return length
+/** Insert version, server and date
  */
 static
 int http_put_headercode(struct response_t *self, char *data, int len) {
@@ -218,8 +217,7 @@ int http_put_headercode(struct response_t *self, char *data, int len) {
 
     sz = snprintf(data, len,
             HTTP_VERSION " %d %s\r\n"
-            "Server: " SERVER_NAME "\r\n"
-            "Accept-Ranges: bytes\r\n",
+            "Server: " SERVER_NAME "\r\n",
             self->status_code, http_string_status(self->status_code));
     len -= sz;
     if (sz < 0 || len <= 0) {
@@ -233,6 +231,16 @@ int http_put_headercode(struct response_t *self, char *data, int len) {
     return sz + i;
 }
 
+/** Insert Accept-...
+ */
+static
+int http_put_headeraccept(struct response_t *self, char *data, int len) {
+    (void)self;
+    return snprintf(data, len, "Accept-Ranges: bytes\r\n");
+}
+
+/** Insert Content-Type, Content-Length and Last-Modified.
+ */
 static
 int http_put_headercontent(struct response_t *self, char *data, int len) {
     int sz, i;
@@ -268,6 +276,8 @@ int http_put_headercontent(struct response_t *self, char *data, int len) {
     return sz;
 }
 
+/** Insert Content-Range.
+ */
 static
 int http_put_headerrange(struct response_t *self, char *data, int len) {
     off_t to;
@@ -276,6 +286,16 @@ int http_put_headerrange(struct response_t *self, char *data, int len) {
     return snprintf(data, len, "Content-Range: bytes %ld-%ld/%ld\r\n",
             self->content_from, to, self->total_length);
 }
+
+#define HTTP_PUT_HEADER_(flag, callback)                            \
+    if (flags & flag) {                                             \
+        i = callback(self, data + sz, len);                         \
+        len -= i;                                                   \
+        if (i < 0 || len <= 0) {                                    \
+            return -1;                                              \
+        }                                                           \
+        sz += i;                                                    \
+    }
 
 int http_gen_header(struct response_t *self, char *data, int len,
         const unsigned int flags) {
@@ -286,22 +306,10 @@ int http_gen_header(struct response_t *self, char *data, int len,
     if (sz < 0 || len <= 0) {
         return -1;
     }
-    if (flags & HTTP_FLAG_CONTENT) {
-        i = http_put_headercontent(self, data + sz, len);
-        len -= i;
-        if (i < 0 || len <= 0) {
-            return -1;
-        }
-        sz += i;
-    }
-    if (flags & HTTP_FLAG_RANGE) {
-        i = http_put_headerrange(self, data + sz, len);
-        len -= i;
-        if (i < 0 || len <= 0) {
-            return -1;
-        }
-        sz += i;
-    }
+    HTTP_PUT_HEADER_(HTTP_FLAG_ACCEPT, http_put_headeraccept);
+    HTTP_PUT_HEADER_(HTTP_FLAG_CONTENT, http_put_headercontent);
+    HTTP_PUT_HEADER_(HTTP_FLAG_RANGE, http_put_headerrange);
+
     if (flags & HTTP_FLAG_END) {
         i = snprintf(data + sz, len, "\r\n");
         if (i < 0) {

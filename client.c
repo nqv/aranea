@@ -319,9 +319,10 @@ int client_process_stage2(struct client_t *self) {
     }
     /* generate header */
     if (client_check_filemod(self) == 0) {
+        CLIENT_CLOSEFD_(self->local_rfd);
         self->response.status_code = HTTP_STATUS_NOTMODIFIED;
         self->data_length = http_gen_header(&self->response, self->data,
-                sizeof(self->data), 0);
+                sizeof(self->data), HTTP_FLAG_END);
         self->state = STATE_SEND_HEADER;
         return 0;
     }
@@ -333,19 +334,18 @@ int client_process_stage2(struct client_t *self) {
     if (len == 0) {
         self->response.status_code = HTTP_STATUS_PARTIALCONTENT;
         self->data_length = http_gen_header(&self->response, self->data,
-                sizeof(self->data),
-                HTTP_FLAG_CONTENT | HTTP_FLAG_RANGE | HTTP_FLAG_END);
+                sizeof(self->data), HTTP_FLAG_ACCEPT | HTTP_FLAG_CONTENT
+                | HTTP_FLAG_RANGE | HTTP_FLAG_END);
         self->state = STATE_SEND_HEADER;
         return 0;
     }
     if (self->flags & CLIENT_FLAG_HEADERONLY) {
-        if (self->local_rfd != -1) {
-            CLIENT_CLOSEFD_(self->local_rfd);
-        }
+        CLIENT_CLOSEFD_(self->local_rfd);
     }
     self->response.status_code = HTTP_STATUS_OK;
     self->data_length = http_gen_header(&self->response, self->data,
-            sizeof(self->data), HTTP_FLAG_CONTENT | HTTP_FLAG_END);
+            sizeof(self->data), HTTP_FLAG_ACCEPT | HTTP_FLAG_CONTENT
+            | HTTP_FLAG_END);
     self->state = STATE_SEND_HEADER;
     return 0;
 }

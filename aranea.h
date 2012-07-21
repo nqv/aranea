@@ -56,10 +56,12 @@ enum {
     FLAG_QUIT                   = 1 << 0,
 };
 
+/* HTTP headers */
 enum {
-    HTTP_FLAG_END               = 1 << 0,
-    HTTP_FLAG_CONTENT           = 1 << 1,
-    HTTP_FLAG_RANGE             = 1 << 2,
+    HTTP_FLAG_END               = 1 << 0,   /* Termination */
+    HTTP_FLAG_ACCEPT            = 1 << 1,   /* Supported features from server */
+    HTTP_FLAG_CONTENT           = 1 << 2,   /* Content type/length */
+    HTTP_FLAG_RANGE             = 1 << 3,   /* Content range */
 };
 
 enum {
