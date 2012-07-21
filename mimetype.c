@@ -9,7 +9,8 @@
 #include "aranea.h"
 
 /* Default mimetype mappings */
-static struct mimetype_t DEFAULT_MIME_TYPES[] = {
+static
+const struct mimetype_t DEFAULT_MIME_TYPES[] = {
     {   "avi",      "video/x-msvideo" },
     {   "bin",      "application/octet-stream"      },
     {   "bz2",      "application/x-bzip2"           },
@@ -78,16 +79,13 @@ const char *mimetype_get(const char *name) {
     int i;
 
     name = strrchr(name, '.');
-    if (name == NULL) {
-        goto not_found;
+    if (name != NULL) {
+        i = mimetype_find_def(name + 1);
+        if (i >= 0) {
+            return DEFAULT_MIME_TYPES[i].type;
+        }
     }
-    i = mimetype_find_def(name + 1);
-    if (i < 0) {
-        goto not_found;
-    }
-    return DEFAULT_MIME_TYPES[i].type;
-
-not_found:
+    /* Not found */
     return "text/plain";
 }
 
