@@ -38,20 +38,36 @@ int cgi_gen_env(const struct request_t *req, char **env) {
 
     cnt = 0;
     buf = g_cgienv;
+
+#ifdef CGI_DOCUMENT_ROOT
+    CGI_ADD_ENV_(env, cnt, buf, "DOCUMENT_ROOT=%s", g_config.root);
+#endif
+#ifdef CGI_REQUEST_METHOD
     CGI_ADD_ENV_(env, cnt, buf, "REQUEST_METHOD=%s", req->method);
+#endif
+#ifdef CGI_REQUEST_URI
     CGI_ADD_ENV_(env, cnt, buf, "REQUEST_URI=%s", req->url);
+#endif
+#ifdef CGI_QUERY_STRING
     if (req->query_string) {
         CGI_ADD_ENV_(env, cnt, buf, "QUERY_STRING=%s", req->query_string);
     }
+#endif
+#ifdef CGI_CONTENT_TYPE
     if (req->content_type) {
         CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->content_type);
     }
+#endif
+#ifdef CGI_CONTENT_LENGTH
     if (req->content_length) {
         CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->content_length);
     }
+#endif
+#ifdef CGI_HTTP_COOKIE
     if (req->cookie) {
         CGI_ADD_ENV_(env, cnt, buf, "HTTP_COOKIE=%s", req->cookie);
     }
+#endif
     *env = NULL;
     return cnt;
 }

@@ -24,6 +24,15 @@
 #define CGI_EXT                     ".cgi"
 #define INDEX_NAME                  "index.html"
 
+/* CGI environments */
+#define CGI_DOCUMENT_ROOT
+#define CGI_REQUEST_METHOD
+#define CGI_REQUEST_URI
+#define CGI_QUERY_STRING
+#define CGI_CONTENT_TYPE
+#define CGI_CONTENT_LENGTH
+#define CGI_HTTP_COOKIE
+
 #endif /* ARANEA_CONFIG_H_ */
 
 /* vim: set ts=4 sw=4 expandtab: */
