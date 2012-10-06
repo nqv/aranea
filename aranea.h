@@ -54,6 +54,7 @@ enum {
 
 enum {
     FLAG_QUIT                   = 1 << 0,
+    FLAG_DAEMON                 = 1 << 1,
 };
 
 /* HTTP headers */

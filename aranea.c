@@ -50,6 +50,21 @@ void detach_client(struct client_t *cli) {
 }
 
 static
+int parse_arguments(int argc, char **argv) {
+    if (argc < 2) {
+        g_config.root = ".";                /* current dir */
+    } else {
+        g_config.root = argv[1];
+    }
+#if 0
+    if (chdir(g_config.root) != 0) {
+        return -1;
+    }
+#endif
+    return 0;
+}
+
+static
 void handle_signal(int sig) {
     switch (sig) {
     case SIGCHLD:
@@ -60,6 +75,22 @@ void handle_signal(int sig) {
         flags_ |= FLAG_QUIT;
         break;
     }
+}
+
+static
+int init_signal() {
+    struct sigaction sa;
+
+    memset(&sa, 0, sizeof(sa));
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = &handle_signal;
+
+    if (sigaction(SIGCHLD, &sa, NULL) < 0
+            || sigaction(SIGQUIT, &sa, NULL) < 0) {
+        A_ERR("sigaction %s", strerror(errno));
+        return -1;
+    }
+    return 0;
 }
 
 static
@@ -79,22 +110,69 @@ void cleanup() {
     }
 }
 
-int main(int argc, char **argv) {
-    /* parse arguments */
-    if (argc < 2) {
-        g_config.root = ".";                /* current dir */
-    } else {
-        g_config.root = argv[1];
+static
+void daemonize(char **argv) {
+    pid_t pid;
+
+    if (getppid() == 1) {       /* already a daemon */
+        return;
     }
-    {   /* init signal*/
-        struct sigaction sa;
-        memset(&sa, 0, sizeof(sa));
-        sa.sa_handler = &handle_signal;
-        if (sigaction(SIGCHLD, &sa, NULL) < 0
-                || sigaction(SIGQUIT, &sa, NULL) < 0) {
-            A_ERR("sigaction %s", strerror(errno));
-            return 1;
-        }
+#if HAVE_VFORK == 1             /* uClinux */
+    pid = vfork();
+    if (pid < 0) {
+        A_ERR("fork error %d", pid);
+        _exit(1);               /* fork error */
+    }
+    if (pid > 0) {
+        _exit(0);               /* exit the original process */
+    }
+    /* fork again in the child process */
+    pid = vfork();
+    if (pid < 0) {
+        A_ERR("fork error %d", pid);
+        _exit(1);               /* fork error */
+    }
+    if (pid > 0) {
+        _exit(0);               /* exit the child process from the 1st fork */
+    }
+    /* child of child process */
+    if (setsid() < 0) {         /* new session */
+        A_ERR("setsid error %d", pid);
+        _exit(1);
+    }
+    /* the parent is now init process, run the program again */
+    execve(argv[0], argv, NULL);
+    _exit(1);
+#else                           /* normal fork */
+    (void)argv;                 /* unused */
+
+    pid = fork();               /* fork off the parent process */
+    if (pid < 0) {
+        A_ERR("fork error %d", pid);
+        exit(1);                /* fork error */
+    }
+    if (pid > 0) {
+        exit(0);                /* exit the parent process */
+    }
+    /* child process */
+    if (setsid() < 0) {         /* new session for the child process */
+        A_ERR("setsid error %d", pid);
+        exit(1);
+    }
+#endif  /* HAVE_VFORK */
+}
+
+int main(int argc, char **argv) {
+    /* parse command line arguments */
+    if (parse_arguments(argc, argv) != 0) {
+        return 1;
+    }
+    if (flags_ & FLAG_DAEMON) {
+        daemonize(argv);
+    }
+    /* initialize signal handlers */
+    if (init_signal() != 0) {
+        return 1;
     }
     g_server.port = PORT;
     if (server_init(&g_server) != 0) {
