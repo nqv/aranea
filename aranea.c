@@ -50,11 +50,48 @@ void detach_client(struct client_t *cli) {
 }
 
 static
-int parse_arguments(int argc, char **argv) {
-    if (argc < 2) {
-        g_config.root = ".";                /* current dir */
-    } else {
-        g_config.root = argv[1];
+void print_help(const char *name) {
+    printf("Usage: %s [-d] [-r DOCUMENT_ROOT] [-p PORT]\n", name);
+    exit(0);
+}
+
+static
+int parse_options(int argc, char **argv) {
+    int i;
+    char sw;    /* current switch */
+
+    /* default settings */
+    g_server.port = PORT;
+    g_config.root = ".";                /* current dir */
+
+    if (argc > 1) {         /* at least one argument */
+        sw = '\0';
+        for (i = 1; i < argc; ++i) {
+            if (argv[i][0] == '-') {
+                sw = argv[i][1];
+                /* switches that have no additional argument */
+                switch (sw) {
+                case 'h':
+                    print_help(argv[0]);
+                    sw = '\0';
+                    break;
+                case 'd':
+                    flags_ |= FLAG_DAEMON;
+                    sw = '\0';
+                    break;
+                }
+            } else {
+                switch (sw) {
+                case 'r':
+                    g_config.root = argv[i];
+                    break;
+                case 'p':
+                    g_server.port = atoi(argv[i]);
+                    break;
+                }
+                sw = '\0';
+            }
+        }
     }
 #if 0
     if (chdir(g_config.root) != 0) {
@@ -164,7 +201,7 @@ void daemonize(char **argv) {
 
 int main(int argc, char **argv) {
     /* parse command line arguments */
-    if (parse_arguments(argc, argv) != 0) {
+    if (parse_options(argc, argv) != 0) {
         return 1;
     }
     if (flags_ & FLAG_DAEMON) {
@@ -174,7 +211,6 @@ int main(int argc, char **argv) {
     if (init_signal() != 0) {
         return 1;
     }
-    g_server.port = PORT;
     if (server_init(&g_server) != 0) {
         return 1;
     }
