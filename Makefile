@@ -2,7 +2,7 @@ PKG = aranea
 
 DEBUG       ?= 0
 # Use vfork (uClinux)
-VFORK       ?= 1
+VFORK       ?= 0
 # Support CGI
 CGI         ?= 1
 
