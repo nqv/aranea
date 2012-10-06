@@ -23,8 +23,19 @@ To achieve these goals, Aranea is not fully compliant with any specifications :)
 
 Compile
 -------
-$ make
-$ ./aranea /path/to/www 8080
+Using vfork:
+$ make VFORK=1
+Disable CGI:
+$ make CGI=0
+
+Run
+---
+Usage: ./aranea [-d] [-r DOCUMENT_ROOT] [-p PORT]
+The doc root should be an absolute path, default is current directory.
+Default listening port is 8080.
+
+Example:
+$ ./aranea -r /path/to/www -p 8080
 
 Test
 ----
