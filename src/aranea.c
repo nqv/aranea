@@ -12,7 +12,8 @@
 #include <time.h>
 #include <signal.h>
 #include <wait.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 /* global vars */
 time_t g_curtime;

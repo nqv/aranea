@@ -14,7 +14,8 @@
 #include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 int server_init(struct server_t *self) {
     struct addrinfo hints, *info, *p;

@@ -14,7 +14,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 #define CLIENT_CLOSEFD_(fd)     \
     do {                        \

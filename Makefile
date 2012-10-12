@@ -6,13 +6,19 @@ VFORK       ?= 0
 # Support CGI
 CGI         ?= 1
 
-SRC = aranea.c server.c client.c http.c mimetype.c cgi.c
+SRC = src/aranea.c \
+	src/server.c \
+	src/client.c \
+	src/http.c \
+	src/mimetype.c \
+	src/cgi.c
+
 OBJ = ${SRC:.c=.o}
 
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
 CFLAGS_NDEBUG = -DNDEBUG
 
-CFLAGS += -Wall -Wextra
+CFLAGS += -Wall -Wextra -I./include
 
 ifeq (${DEBUG},1)
 CFLAGS += ${CFLAGS_DEBUG}

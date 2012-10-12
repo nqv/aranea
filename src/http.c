@@ -7,7 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 static
 int hex_to_int(const char c) {

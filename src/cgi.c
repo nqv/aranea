@@ -5,7 +5,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 #define CGI_EXT_LEN_                ((int)sizeof(CGI_EXT) - 1)
 int is_cgi(const char *name, const int len) {

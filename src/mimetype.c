@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include "aranea.h"
+
+#include <aranea/aranea.h>
 
 /* Default mimetype mappings */
 static
