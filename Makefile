@@ -5,6 +5,8 @@ DEBUG       ?= 0
 VFORK       ?= 0
 # Support CGI
 CGI         ?= 1
+# Use chroot
+CHROOT      ?= 0
 
 SRC = src/aranea.c \
 	src/server.c \
@@ -29,6 +31,9 @@ CFLAGS += -DHAVE_VFORK=1
 endif
 ifeq (${CGI},1)
 CFLAGS += -DHAVE_CGI=1
+endif
+ifeq (${CHROOT},1)
+CFLAGS += -DHAVE_CHROOT=1
 endif
 
 all: options ${PKG}

@@ -65,23 +65,6 @@ void client_reset(struct client_t *self) {
     memset(&self->response, 0, sizeof(self->response));
 }
 
-static
-int get_realpath(const char *url, char *path) {
-    int len;
-
-    /* snprintf is slower but safer than strcat/strncpy */
-    if (g_config.root != NULL) {
-        len = snprintf(path, MAX_PATH_LENGTH, "%s%s", g_config.root, url);
-    } else {                            /* chroot */
-        len = snprintf(path, MAX_PATH_LENGTH, "%s", url);
-    }
-    if (url[strlen(url) - 1] == '/') {
-        /* url/index.html */
-        len = snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
-    }
-    return len;
-}
-
 /** Open and get file information
  * Set response.status_code on error.
  */
@@ -296,7 +279,7 @@ int client_process_stage2(struct client_t *self) {
     http_decode_url(self->request.url);
     http_sanitize_url(self->request.url);
     /* get path in fs */
-    len = get_realpath(self->request.url, path);
+    len = http_get_realpath(self->request.url, path);
 
 #if HAVE_CGI == 1
     if (is_cgi(path, len)) {

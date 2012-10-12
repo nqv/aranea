@@ -405,6 +405,23 @@ void http_sanitize_url(char *url) {
     }
 }
 
+int http_get_realpath(const char *url, char *path) {
+    int len;
+
+    /* snprintf is slower but safer than strcat/strncpy */
+#if HAVE_CHROOT == 1                    /* already chroot */
+    len = snprintf(path, MAX_PATH_LENGTH, "%s", url);
+#else
+    len = snprintf(path, MAX_PATH_LENGTH, "%s%s", g_config.root, url);
+#endif
+    /* append default index file */
+    if (url[strlen(url) - 1] == '/') {
+        /* url/index.html */
+        len = snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
+    }
+    return len;
+}
+
 /** Find the length of request header by looking for the header termination
  * (\r\n\r\n or \n\n)
  */

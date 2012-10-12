@@ -29,6 +29,11 @@ int http_gen_errorpage(struct response_t *self, char *data, int len);
  */
 void http_sanitize_url(char *url);
 
+/** Convert from request relative url to absolute path in the system.
+ * Path buffer's length should be greater than MAX_PATH_LENGTH.
+ */
+int http_get_realpath(const char *url, char *path);
+
 /** Find the length of request header.
  */
 int http_find_headerlength(const char *data, int len);

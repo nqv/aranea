@@ -94,8 +94,9 @@ int parse_options(int argc, char **argv) {
             }
         }
     }
-#if 0
-    if (chdir(g_config.root) != 0) {
+#if HAVE_CHROOT == 1
+    if (chroot(g_config.root) != 0) {
+        A_ERR("Could not chroot to %s", g_config.root);
         return -1;
     }
 #endif
