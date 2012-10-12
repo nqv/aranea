@@ -1,5 +1,5 @@
 /* Aranea
- * Copyright (c) 2012, Nguyen Quoc Viet
+ * Copyright (c) 2011-2012, Quoc-Viet Nguyen
  * See LICENSE file for copyright and license details.
  */
 
