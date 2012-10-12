@@ -15,10 +15,9 @@ SRC = src/aranea.c \
 
 OBJ = ${SRC:.c=.o}
 
+CFLAGS += -Wall -Wextra --std=gnu99 -I./include
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
 CFLAGS_NDEBUG = -DNDEBUG
-
-CFLAGS += -Wall -Wextra -I./include
 
 ifeq (${DEBUG},1)
 CFLAGS += ${CFLAGS_DEBUG}
