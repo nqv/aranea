@@ -16,14 +16,18 @@
 #include <aranea/aranea.h>
 
 /* global vars */
+/** Current time: used in HTTP date and server timeout checking */
 time_t g_curtime;
+/** System settings */
 struct config_t g_config;
-char g_cgienv[MAX_CGIENV_LENGTH];
+/** General purpose buffer */
+char g_buff[GBUFF_LENGTH];
+/** Server socket */
 struct server_t g_server;
 
 /* save allocated clients to reduce number of malloc call */
-struct client_t *poolclient_ = NULL;
-int poolclient_len_ = 0;
+static struct client_t *poolclient_ = NULL;
+static int poolclient_len_ = 0;
 static unsigned int flags_ = 0;
 
 /** Get client from pool if possible

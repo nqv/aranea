@@ -13,6 +13,7 @@
 int is_cgi(const char *name, const int len);
 
 /** Generate CGI environment from HTTP request.
+ * Values are saved in g_buff
  */
 int cgi_gen_env(const struct request_t *req, char **env);
 

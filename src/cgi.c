@@ -9,6 +9,9 @@
 #include <aranea/aranea.h>
 
 #define CGI_EXT_LEN_                ((int)sizeof(CGI_EXT) - 1)
+/** Buffer for CGI environment variables */
+#define CGI_BUFF                    g_buff
+
 int is_cgi(const char *name, const int len) {
     if (len > CGI_EXT_LEN_) {
         if (memcmp(name + len - CGI_EXT_LEN_, CGI_EXT, CGI_EXT_LEN_) == 0) {
@@ -21,7 +24,7 @@ int is_cgi(const char *name, const int len) {
 #define CGI_ADD_ENV_(env, cnt, buf, ...)                            \
     do {                                                            \
         *env = buf;                                                 \
-        len = sizeof(g_cgienv) - (buf - g_cgienv);                  \
+        len = sizeof(CGI_BUFF) - (buf - CGI_BUFF);                  \
         if (len > 0) {                                              \
             len = snprintf(buf, len, __VA_ARGS__);                  \
             buf += len + 1; /* skip NULL */                         \
@@ -38,7 +41,7 @@ int cgi_gen_env(const struct request_t *req, char **env) {
     char *buf;
 
     cnt = 0;
-    buf = g_cgienv;
+    buf = CGI_BUFF;
 
 #ifdef CGI_DOCUMENT_ROOT
     CGI_ADD_ENV_(env, cnt, buf, "DOCUMENT_ROOT=%s", g_config.root);

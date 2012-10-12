@@ -19,6 +19,7 @@
 #define A_SRC                   __FILE__ ":" A_TOSTR(__LINE__)
 #define A_UNUSED(x)             _ ## x __attribute__((unused))
 #define A_SIZEOF(x)             (sizeof(x) / sizeof((x)[0]))
+#define A_MAX(x, y)             ((x) > (y) ? (x) : (y))
 
 #ifdef DEBUG
 # define A_ERR(fmt, ...)        fprintf(stderr, "*%s\t\t" fmt "\n", A_SRC, __VA_ARGS__)
@@ -27,6 +28,11 @@
 # define A_ERR(fmt, ...)        fprintf(stderr, fmt "\n", __VA_ARGS__)
 # define A_LOG(fmt, ...)
 #endif
+
+/** General purpose buffer, used by CGI
+ */
+#define GBUFF_LENGTH            A_MAX(MAX_CGIENV_LENGTH, \
+                                    A_MAX(MAX_PATH_LENGTH, MAX_REQUEST_LENGTH))
 
 /* aranea.c */
 
@@ -42,8 +48,7 @@ void detach_client(struct client_t *cli);
 /* global variables */
 extern time_t g_curtime;
 extern struct config_t g_config;
-extern char g_cgienv[MAX_CGIENV_LENGTH];
-extern struct client_t *g_listclient;
+extern char g_buff[GBUFF_LENGTH];
 extern struct server_t g_server;
 
 #endif /* ARANEA_H_ */
