@@ -1,5 +1,6 @@
 *.o
 *.patch
+*.bak
 .*.swp
 tags
-aranea
+/aranea
