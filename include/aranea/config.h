@@ -16,6 +16,10 @@
 #define MAX_CONN                    10
 #define NUM_CACHED_CONN             4
 
+#define MAX_IP_LENGTH               40
+#define MAX_DATE_LENGTH             32      /* */
+#define DATE_FORMAT                 "%a, %d %b %Y %H:%M:%S GMT"
+
 #define WWW_INDEX                   "index.html"
 #define PORT                        8080
 #define SERVER_TIMEOUT              60          /* sec */
@@ -32,6 +36,7 @@
 #define CGI_CONTENT_TYPE
 #define CGI_CONTENT_LENGTH
 #define CGI_HTTP_COOKIE
+
 
 #endif /* ARANEA_CONFIG_H_ */
 
