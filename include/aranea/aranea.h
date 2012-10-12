@@ -30,7 +30,13 @@
 
 /* aranea.c */
 
+/** Create a new client object. The new one is either from client pool
+ * or newly allocated.
+ */
 struct client_t *alloc_client();
+
+/** Push this client into the pool or delete it if the pool is full.
+ */
 void detach_client(struct client_t *cli);
 
 /* global variables */
