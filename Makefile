@@ -20,23 +20,20 @@ CFLAGS += -Wall -Wextra --std=gnu99 -I./include
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
 CFLAGS_NDEBUG = -DNDEBUG
 
+CFLAGS += -DHAVE_VFORK=${VFORK} -DHAVE_CGI=${CGI} -DHAVE_CHROOT=${CHROOT}
+CFLAGS += -DHAVE_AUTH=${AUTH}
+
 ifeq (${DEBUG},1)
 CFLAGS += ${CFLAGS_DEBUG}
 else
 CFLAGS += ${CFLAGS_NDEBUG}
 endif
-ifeq (${VFORK},1)
-CFLAGS += -DHAVE_VFORK=1
-endif
+
 ifeq (${CGI},1)
-CFLAGS += -DHAVE_CGI=1
 SRC += src/cgi.c
 endif
-ifeq (${CHROOT},1)
-CFLAGS += -DHAVE_CHROOT=1
-endif
+
 ifeq (${AUTH},1)
-CFLAGS += -DHAVE_AUTH=1
 SRC += src/auth.c \
 	src/util.c
 endif

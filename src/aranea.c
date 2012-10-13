@@ -60,7 +60,20 @@ void detach_client(struct client_t *cli) {
 
 static
 void print_help(const char *name) {
-    printf("Usage: %s [-d] [-r DOCUMENT_ROOT] [-p PORT]\n", name);
+    printf("Usage: %s [ARGUMENTS]\n", name);
+
+    printf("Arguments:\n%s",
+            "  -d                   Run as daemon (background) mode\n"
+            "  -r DOCUMENT_ROOT     Server root (absolute path)\n"
+            "  -p PORT              Server listening port\n"
+#if HAVE_AUTH == 1
+            "  -f AUTH_FILE         Authentication file\n"
+#endif
+            );
+
+    printf("Version: %s (AUTH=%d CGI=%d CHROOT=%d VFORK=%d)\n",
+            ARANEA_VERSION, HAVE_AUTH, HAVE_CGI, HAVE_CHROOT, HAVE_VFORK);
+
     exit(0);
 }
 

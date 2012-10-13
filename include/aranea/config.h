@@ -6,9 +6,9 @@
 #ifndef ARANEA_CONFIG_H_
 #define ARANEA_CONFIG_H_
 
-#define SERVER_NAME                 "Aranea"
-#define SERVER_VERSION              "0.1"
-#define SERVER_ID                   SERVER_NAME "/" SERVER_VERSION
+#define ARANEA_NAME                 "Aranea"
+#define ARANEA_VERSION              "0.1"
+#define SERVER_ID                   ARANEA_NAME "/" ARANEA_VERSION
 #define HTTP_VERSION                "HTTP/1.1"
 
 #define MAX_REQUEST_LENGTH          1024
@@ -45,6 +45,19 @@
 #define CGI_CONTENT_LENGTH
 #define CGI_HTTP_COOKIE
 
+/* Features supported */
+#ifndef HAVE_AUTH
+#define HAVE_AUTH                   0
+#endif
+#ifndef HAVE_CGI
+#define HAVE_CGI                    0
+#endif
+#ifndef HAVE_CHROOT
+#define HAVE_CHROOT                 0
+#endif
+#ifndef HAVE_VFORK
+#define HAVE_VFORK                  0
+#endif
 
 #endif /* ARANEA_CONFIG_H_ */
 
