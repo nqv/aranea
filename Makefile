@@ -4,7 +4,7 @@ DEBUG       ?= 0
 # Use vfork (uClinux)
 VFORK       ?= 0
 # Support CGI
-CGI         ?= 1
+CGI         ?= 0
 # Use chroot
 CHROOT      ?= 0
 # Authorization
@@ -14,8 +14,7 @@ SRC = src/aranea.c \
 	src/server.c \
 	src/client.c \
 	src/http.c \
-	src/mimetype.c \
-	src/cgi.c
+	src/mimetype.c 
 
 CFLAGS += -Wall -Wextra --std=gnu99 -I./include
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
@@ -31,6 +30,7 @@ CFLAGS += -DHAVE_VFORK=1
 endif
 ifeq (${CGI},1)
 CFLAGS += -DHAVE_CGI=1
+SRC += src/cgi.c
 endif
 ifeq (${CHROOT},1)
 CFLAGS += -DHAVE_CHROOT=1

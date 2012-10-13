@@ -13,10 +13,8 @@
 #include <aranea/http.h>
 #include <aranea/mimetype.h>
 #include <aranea/cgi.h>
-#if HAVE_AUTH == 1
 #include <aranea/auth.h>
 #include <aranea/util.h>
-#endif
 
 #define A_QUOTE(x)              #x
 #define A_TOSTR(x)              A_QUOTE(x)

@@ -19,18 +19,18 @@ To achieve these goals, Aranea is not fully compliant with any specification :)
 - axTLS (http://axtls.sf.net)
 
 * Will NOT be supported:
-- Directory listing (can be done using a CGI script. See test/dir.cgi).
+- Directory listing (can be done using a CGI script. See www/dir.cgi).
 
 Compile
 -------
-Using vfork:
+Using vfork() rather than fork() (under uClinux):
 $ make VFORK=1
-Disable CGI:
-$ make CGI=0
+Enable CGI and Authentication:
+$ make CGI=1 AUTH=1
 
 Run
 ---
-Usage: ./aranea [-d] [-r DOCUMENT_ROOT] [-p PORT]
+Usage: ./aranea [-d] [-r DOCUMENT_ROOT] [-p PORT] [-f AUTH_FILE]
 The doc root should be an absolute path, default is current directory.
 Default listening port is 8080.
 
