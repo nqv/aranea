@@ -53,21 +53,31 @@ enum {
     CLIENT_FLAG_POST            = 1 << 1,
 };
 
+/** HTTP request headers.
+ * This should match the array name in http.c
+ */
+enum {
+    HEADER_CONNECTION,          /* Connection */
+    HEADER_CONTENTLENGTH,       /* Content-Length */
+    HEADER_CONTENTRANGE,        /* Content-Range */
+    HEADER_CONTENTTYPE,         /* Content-Type */
+    HEADER_COOKIE,              /* Cookie */
+    HEADER_IFMODIFIEDSINCE,     /* If-Modified-Since */
+    NUM_REQUEST_HEADER,
+};
+
 /**
  * Pointed to request buffer
  */
 struct request_t {
+    char *header[NUM_REQUEST_HEADER];
+
     char *method;               /* required */
     char *url;                  /* required */
     char *query_string;
     char *version;              /* required */
-    char *connection;
-    char *content_type;
-    char *content_length;
     char *range_from;
     char *range_to;
-    char *if_mod_since;
-    char *cookie;
     ssize_t header_length;
 };
 

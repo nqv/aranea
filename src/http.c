@@ -11,6 +11,16 @@
 #include <aranea/aranea.h>
 
 static
+const char * const REQUEST_HEADER_NAMES[NUM_REQUEST_HEADER] = {
+        "Connection",
+        "Content-Length",
+        "Content-Range",
+        "Content-Type",
+        "Cookie",
+        "If-Modified-Since",
+};
+
+static
 int hex_to_int(const char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -55,20 +65,16 @@ void http_parse_range(struct request_t *self, char *val) {
 
 static
 void http_save_header(struct request_t *self, char *key, char *val) {
-    if (strcasecmp(key, "Content-Type") == 0) {
-        self->content_type = val;
-    } else if (strcasecmp(key, "Content-Length") == 0) {
-        self->content_length = val;
-    } else if (strcasecmp(key, "Connection") == 0) {
-        self->connection = val;
-    } else if (strcasecmp(key, "Content-Range") == 0) {
+    int i;
+
+    for (i = 0; i < NUM_REQUEST_HEADER; ++i) {
+        if (strcasecmp(key, REQUEST_HEADER_NAMES[i]) == 0) {
+            self->header[i] = val;
+            break;
+        }
+    }
+    if (i == HEADER_CONTENTRANGE) {
         http_parse_range(self, val);
-    } else if (strcasecmp(key, "If-Modified-Since") == 0) {
-        self->if_mod_since = val;
-    } else if (strcasecmp(key, "Cookie") == 0) {
-        self->cookie = val;
-    } else {
-        A_LOG("header: %s %s", key, val);
     }
 }
 

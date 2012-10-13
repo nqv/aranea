@@ -142,12 +142,12 @@ int client_check_filemod(struct client_t *self) {
     char date[MAX_DATE_LENGTH];
     int len;
 
-    if (self->request.if_mod_since == NULL) {
+    if (self->request.header[HEADER_IFMODIFIEDSINCE] == NULL) {
         return 1;
     }
     len = strftime(date, sizeof(date), DATE_FORMAT,
             gmtime(&self->response.last_mod));
-    if (strncmp(self->request.if_mod_since, date, len) == 0) {
+    if (strncmp(self->request.header[HEADER_IFMODIFIEDSINCE], date, len) == 0) {
         return 0;
     }
     return -1;

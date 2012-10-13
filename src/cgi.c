@@ -58,18 +58,18 @@ int cgi_gen_env(const struct request_t *req, char **env) {
     }
 #endif
 #ifdef CGI_CONTENT_TYPE
-    if (req->content_type) {
-        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->content_type);
+    if (req->header[HEADER_CONTENTTYPE]) {
+        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_TYPE=%s", req->header[HEADER_CONTENTTYPE]);
     }
 #endif
 #ifdef CGI_CONTENT_LENGTH
-    if (req->content_length) {
-        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->content_length);
+    if (req->header[HEADER_CONTENTLENGTH]) {
+        CGI_ADD_ENV_(env, cnt, buf, "CONTENT_LENGTH=%s", req->header[HEADER_CONTENTLENGTH]);
     }
 #endif
 #ifdef CGI_HTTP_COOKIE
-    if (req->cookie) {
-        CGI_ADD_ENV_(env, cnt, buf, "HTTP_COOKIE=%s", req->cookie);
+    if (req->header[HEADER_COOKIE]) {
+        CGI_ADD_ENV_(env, cnt, buf, "HTTP_COOKIE=%s", req->header[HEADER_COOKIE]);
     }
 #endif
     *env = NULL;
