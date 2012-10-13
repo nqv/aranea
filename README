@@ -5,17 +5,17 @@ friendly, especially uClinux, which does not have fork system call nor threads,
 as well as limited stack size. Therefore, it should be small footprint and
 using of malloc() is avoided where possible.
 
-To achieve these goals, Aranea is not fully compliant with any specifications :)
+To achieve these goals, Aranea is not fully compliant with any specification :)
 
 * Features:
 - Methods: GET, HEAD, POST.
 - Executing scripts (CGI) with only essential environment variables.
 - Request headers: Range, If-Modified-Since, Cookie.
+- Basic authentication.
 - Single thread with non-blocking sockets and sendfile() call for static files.
 - IPv4 and v6.
 
 * Will be supported:
-- Authentication
 - axTLS (http://axtls.sf.net)
 
 * Will NOT be supported:
