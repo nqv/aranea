@@ -24,6 +24,10 @@ struct config_t g_config;
 char g_buff[GBUFF_LENGTH];
 /** Server socket */
 struct server_t g_server;
+/* Authentication */
+#if HAVE_AUTH == 1
+struct auth_t *g_auth = NULL;
+#endif
 
 /* save allocated clients to reduce number of malloc call */
 static struct client_t *poolclient_ = NULL;
@@ -61,7 +65,7 @@ void print_help(const char *name) {
 }
 
 static
-int parse_options(int argc, char **argv) {
+void parse_options(int argc, char **argv) {
     int i;
     char sw;    /* current switch */
 
@@ -93,11 +97,32 @@ int parse_options(int argc, char **argv) {
                 case 'p':
                     g_server.port = atoi(argv[i]);
                     break;
+#if HAVE_AUTH == 1
+                case 'f':
+                    g_config.auth_file = argv[i];
+                    break;
+#endif
                 }
                 sw = '\0';
             }
         }
     }
+}
+
+/** Initialize from user configurations
+ */
+static
+int init_conf() {
+    /* Parse authentication file */
+#if HAVE_AUTH == 1
+    if (g_config.auth_file) {
+        if (auth_parsefile(g_config.auth_file) != 0) {
+            return -1;
+        }
+    }
+#endif
+
+    /* Change root to www directory */
 #if HAVE_CHROOT == 1
     if (chroot(g_config.root) != 0) {
         A_ERR("Could not chroot to %s", g_config.root);
@@ -139,6 +164,10 @@ int init_signal() {
 static
 void cleanup() {
     struct client_t *c, *tc;
+
+#if HAVE_AUTH == 1
+    auth_cleanup();
+#endif
 
     for (c = g_server.clients; c != NULL; ) {
         tc = c;
@@ -207,11 +236,14 @@ void daemonize(char **argv) {
 
 int main(int argc, char **argv) {
     /* parse command line arguments */
-    if (parse_options(argc, argv) != 0) {
-        return 1;
-    }
+    parse_options(argc, argv);
+
     if (flags_ & FLAG_DAEMON) {
         daemonize(argv);
+    }
+    /* User configuration */
+    if (init_conf() != 0) {
+        return 1;
     }
     /* initialize signal handlers */
     if (init_signal() != 0) {

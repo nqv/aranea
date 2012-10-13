@@ -12,6 +12,9 @@
 
 static
 const char * const REQUEST_HEADER_NAMES[NUM_REQUEST_HEADER] = {
+#if HAVE_AUTH == 1
+        "Authorization",
+#endif
         "Connection",
         "Content-Length",
         "Content-Range",
@@ -209,149 +212,147 @@ int http_parse(struct request_t *self, char *data, int len) {
 }
 
 static
-int http_put_headerdate(char *data, int len) {
+int http_put_headerdate(struct response_t *self, char *data, int sz) {
     struct tm *tm;
+    (void)self;
 
     tm = gmtime(&g_curtime);
-    return strftime(data, len, "Date: " DATE_FORMAT "\r\n", tm);
+    return strftime(data, sz, "Date: " DATE_FORMAT "\r\n", tm);
 }
 
 /** Insert version, server and date
  */
 static
-int http_put_headercode(struct response_t *self, char *data, int len) {
-    int sz, i;
-
-    sz = snprintf(data, len,
+int http_put_headerstatus(struct response_t *self, char *data, int sz) {
+    return snprintf(data, sz,
             HTTP_VERSION " %d %s\r\n"
             "Server: " SERVER_NAME "\r\n",
             self->status_code, http_string_status(self->status_code));
-    len -= sz;
-    if (sz < 0 || len <= 0) {
-        return -1;
-    }
-    i = http_put_headerdate(data + sz, len);
-    len -= i;
-    if (i < 0 || len <= 0) {
-        return -1;
-    }
-    return sz + i;
 }
 
 /** Insert Accept-...
  */
 static
-int http_put_headeraccept(struct response_t *self, char *data, int len) {
+int http_put_headeraccept(struct response_t *self, char *data, int sz) {
     (void)self;
-    return snprintf(data, len, "Accept-Ranges: bytes\r\n");
+    return snprintf(data, sz, "Accept-Ranges: bytes\r\n");
 }
 
 /** Insert Content-Type, Content-Length and Last-Modified.
  */
 static
-int http_put_headercontent(struct response_t *self, char *data, int len) {
-    int sz, i;
+int http_put_headercontent(struct response_t *self, char *data, int sz) {
+    int len, i;
 
-    sz = 0;
+    len = 0;
     if (self->content_length >= 0) {
-        i = snprintf(data + sz, len, "Content-Length: %ld\r\n",
+        i = snprintf(data, sz, "Content-Length: %ld\r\n",
                 self->content_length);
-        len -= i;
-        if (i < 0 || len <= 0) {
+        sz -= i;
+        if (sz < 0) {
             return -1;
         }
-        sz += i;
+        len += i;
     }
     if (self->content_type != NULL) {
-        i = snprintf(data + sz, len, "Content-Type: %s\r\n",
+        i = snprintf(data + len, sz, "Content-Type: %s\r\n",
                 self->content_type);
-        len -= i;
-        if (i < 0 || len <= 0) {
+        sz -= i;
+        if (sz < 0) {
             return -1;
         }
-        sz += i;
+        len += i;
     }
     if (self->last_mod >= 0) {
-        i = strftime(data + sz, len, "Last-Modified: " DATE_FORMAT "\r\n",
+        i = strftime(data + len, sz, "Last-Modified: " DATE_FORMAT "\r\n",
                 gmtime(&self->last_mod));
-        len -= i;
-        if (i < 0 || len <= 0) {
+        sz -= i;
+        if (sz < 0) {
             return -1;
         }
-        sz += i;
+        len += i;
     }
-    return sz;
+    return len;
 }
 
 /** Insert Content-Range.
  */
 static
-int http_put_headerrange(struct response_t *self, char *data, int len) {
+int http_put_headerrange(struct response_t *self, char *data, int sz) {
     off_t to;
 
     to = self->content_from + self->content_length - 1;
-    return snprintf(data, len, "Content-Range: bytes %ld-%ld/%ld\r\n",
+    return snprintf(data, sz, "Content-Range: bytes %ld-%ld/%ld\r\n",
             self->content_from, to, self->total_length);
 }
 
-#define HTTP_PUT_HEADER_(flag, callback)                            \
+#define HTTP_PUT_HEADER_(flag, callback, len, sz)                   \
     if (flags & flag) {                                             \
-        i = callback(self, data + sz, len);                         \
-        len -= i;                                                   \
-        if (i < 0 || len <= 0) {                                    \
+        i = callback(self, data + len, sz);                         \
+        sz -= i;                                                    \
+        if (sz < 0) {                                               \
             return -1;                                              \
         }                                                           \
-        sz += i;                                                    \
+        len += i;                                                   \
     }
 
-int http_gen_header(struct response_t *self, char *data, int len,
+int http_gen_header(struct response_t *self, char *data, int sz,
         const unsigned int flags) {
-    int sz, i;
+    int len, i;
 
-    sz = http_put_headercode(self, data, len);
-    len -= sz;
-    if (sz < 0 || len <= 0) {
+    len = http_put_headerstatus(self, data, sz);
+    sz -= len;
+    if (sz < 0) {
         return -1;
     }
-    HTTP_PUT_HEADER_(HTTP_FLAG_ACCEPT, http_put_headeraccept);
-    HTTP_PUT_HEADER_(HTTP_FLAG_CONTENT, http_put_headercontent);
-    HTTP_PUT_HEADER_(HTTP_FLAG_RANGE, http_put_headerrange);
+    HTTP_PUT_HEADER_(HTTP_FLAG_DATE, http_put_headerdate, len, sz);
+    HTTP_PUT_HEADER_(HTTP_FLAG_ACCEPT, http_put_headeraccept, len, sz);
+    HTTP_PUT_HEADER_(HTTP_FLAG_CONTENT, http_put_headercontent, len, sz);
+    HTTP_PUT_HEADER_(HTTP_FLAG_RANGE, http_put_headerrange, len, sz);
 
     if (flags & HTTP_FLAG_END) {
-        i = snprintf(data + sz, len, "\r\n");
+        i = snprintf(data + len, sz, "\r\n");
         if (i < 0) {
             return -1;
         }
-        sz += i;
+        len += i;
     }
-    return sz;
+    return len;
 }
 
-int http_gen_errorpage(struct response_t *self, char *data, int len) {
-    int sz, i;
+int http_gen_errorpage(struct response_t *self, char *data, int sz) {
+    int len, i;
 
-    sz = http_put_headercode(self, data, len);
-    len -= sz;
-    if (sz < 0 || len <= 0) {
+    len = http_put_headerstatus(self, data, sz);
+    sz -= len;
+    if (sz < 0) {
         return -1;
     }
-    i = snprintf(data + sz, len,
+#if HAVE_AUTH == 1
+    if (self->realm != NULL) {
+        i = snprintf(data + len, sz,
+                "WWW-Authenticate: Basic realm=\"%s\"\r\n", self->realm);
+        sz -= i;
+        if (sz < 0) {
+            return -1;
+        }
+        len += i;
+    }
+#endif
+    i = snprintf(data + len, sz,
             "Content-Type: text/html\r\n\r\n");
-    len -= i;
-    if (i <= 0 || len <= 0) {
+    sz -= i;
+    if (sz < 0) {
         return -1;
     }
-    sz += i;
-    i = snprintf(data + sz, len,
+    len += i;
+    i = snprintf(data + len, sz,
             "<html><head><title>%d</title></head><body>"
             "<h1>%d %s</h1><hr />" SERVER_NAME
             "</body></html>",
             self->status_code, self->status_code,
             http_string_status(self->status_code));
-    if (i <= 0) {
-        return -1;
-    }
-    return sz + i;
+    return len + i;
 }
 
 void http_decode_url(char *url) {
@@ -483,6 +484,8 @@ const char *http_string_status(int code) {
         switch (code) {
         case HTTP_STATUS_BADREQUEST:
             return "Bad Request";
+        case HTTP_STATUS_AUTHORIZATIONREQUIRED:
+            return "Authorization Required";
         case HTTP_STATUS_FORBIDDEN:
             return "Forbidden";
         case HTTP_STATUS_NOTFOUND:

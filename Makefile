@@ -7,6 +7,8 @@ VFORK       ?= 0
 CGI         ?= 1
 # Use chroot
 CHROOT      ?= 0
+# Authorization
+AUTH        ?= 0
 
 SRC = src/aranea.c \
 	src/server.c \
@@ -14,8 +16,6 @@ SRC = src/aranea.c \
 	src/http.c \
 	src/mimetype.c \
 	src/cgi.c
-
-OBJ = ${SRC:.c=.o}
 
 CFLAGS += -Wall -Wextra --std=gnu99 -I./include
 CFLAGS_DEBUG = -Werror -O0 -g -DDEBUG
@@ -35,6 +35,13 @@ endif
 ifeq (${CHROOT},1)
 CFLAGS += -DHAVE_CHROOT=1
 endif
+ifeq (${AUTH},1)
+CFLAGS += -DHAVE_AUTH=1
+SRC += src/auth.c \
+	src/util.c
+endif
+
+OBJ = ${SRC:.c=.o}
 
 all: options ${PKG}
 

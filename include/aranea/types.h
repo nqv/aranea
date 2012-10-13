@@ -19,6 +19,7 @@ enum {
     HTTP_STATUS_NOTMODIFIED     = 304,
     /* 4xx */
     HTTP_STATUS_BADREQUEST      = 400,
+    HTTP_STATUS_AUTHORIZATIONREQUIRED = 401,
     HTTP_STATUS_FORBIDDEN       = 403,
     HTTP_STATUS_NOTFOUND        = 404,
     HTTP_STATUS_ENTITYTOOLARGE  = 413,
@@ -46,6 +47,7 @@ enum {
     HTTP_FLAG_ACCEPT            = 1 << 1,   /* Supported features from server */
     HTTP_FLAG_CONTENT           = 1 << 2,   /* Content type/length */
     HTTP_FLAG_RANGE             = 1 << 3,   /* Content range */
+    HTTP_FLAG_DATE              = 1 << 4,   /* Server date */
 };
 
 enum {
@@ -57,6 +59,9 @@ enum {
  * This should match the array name in http.c
  */
 enum {
+#if HAVE_AUTH == 1
+    HEADER_AUTHORIZATION,       /* Authorization */
+#endif
     HEADER_CONNECTION,          /* Connection */
     HEADER_CONTENTLENGTH,       /* Content-Length */
     HEADER_CONTENTRANGE,        /* Content-Range */
@@ -88,6 +93,9 @@ struct response_t {
     off_t content_length;
     off_t content_from;
     time_t last_mod;
+#if HAVE_AUTH == 1
+    const char *realm;
+#endif
 };
 
 struct mimetype_t {
@@ -95,8 +103,19 @@ struct mimetype_t {
     const char *type;
 };
 
+struct auth_t {
+    char path[MAX_AUTHPATH_LENGTH];
+    int path_length;    /**< To not have to calculate path length again */
+    char user[MAX_AUTHUSER_LENGTH];
+    char pass[MAX_AUTHPASS_LENGTH];
+    struct auth_t *next;
+};
+
 struct config_t {
     const char *root;
+#if HAVE_AUTH == 1
+    const char *auth_file;
+#endif
 };
 
 struct client_t {

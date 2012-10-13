@@ -13,6 +13,10 @@
 #include <aranea/http.h>
 #include <aranea/mimetype.h>
 #include <aranea/cgi.h>
+#if HAVE_AUTH == 1
+#include <aranea/auth.h>
+#include <aranea/util.h>
+#endif
 
 #define A_QUOTE(x)              #x
 #define A_TOSTR(x)              A_QUOTE(x)
@@ -50,6 +54,10 @@ extern time_t g_curtime;
 extern struct config_t g_config;
 extern char g_buff[GBUFF_LENGTH];
 extern struct server_t g_server;
+
+#if HAVE_AUTH == 1
+extern struct auth_t *g_auth;
+#endif
 
 #endif /* ARANEA_H_ */
 

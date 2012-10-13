@@ -20,6 +20,11 @@
 #define MAX_DATE_LENGTH             32      /* */
 #define DATE_FORMAT                 "%a, %d %b %Y %H:%M:%S GMT"
 
+/* Currently, support only plain password */
+#define MAX_AUTHPATH_LENGTH         128
+#define MAX_AUTHUSER_LENGTH         32
+#define MAX_AUTHPASS_LENGTH         32
+
 #define WWW_INDEX                   "index.html"
 #define PORT                        8080
 #define SERVER_TIMEOUT              60          /* sec */

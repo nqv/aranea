@@ -10,7 +10,7 @@
 
 /** Parse HTTP headers.
  */
-int http_parse(struct request_t *self, char *data, int len);
+int http_parse(struct request_t *self, char *data, int sz);
 
 /** Get the path from url in the request.
  */
@@ -18,12 +18,12 @@ void http_decode_url(char *url);
 
 /** Generate HTTP headers for response.
  */
-int http_gen_header(struct response_t *self, char *data, int len,
+int http_gen_header(struct response_t *self, char *data, int sz,
         const unsigned int flags);
 
 /** Generate HTTP content for error page.
  */
-int http_gen_errorpage(struct response_t *self, char *data, int len);
+int http_gen_errorpage(struct response_t *self, char *data, int sz);
 
 /** Make url safe by removing relative path.
  */
