@@ -6,7 +6,9 @@
 #ifndef ARANEA_CONFIG_H_
 #define ARANEA_CONFIG_H_
 
-#define SERVER_NAME                 "Aranea/0.0.1"
+#define SERVER_NAME                 "Aranea"
+#define SERVER_VERSION              "0.1"
+#define SERVER_ID                   SERVER_NAME "/" SERVER_VERSION
 #define HTTP_VERSION                "HTTP/1.1"
 
 #define MAX_REQUEST_LENGTH          1024
@@ -21,6 +23,7 @@
 #define DATE_FORMAT                 "%a, %d %b %Y %H:%M:%S GMT"
 
 /* Currently, support only plain password */
+#define AUTH_REALM                  SERVER_ID
 #define MAX_AUTHPATH_LENGTH         128
 #define MAX_AUTHUSER_LENGTH         32
 #define MAX_AUTHPASS_LENGTH         32

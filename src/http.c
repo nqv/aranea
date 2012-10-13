@@ -226,7 +226,7 @@ static
 int http_put_headerstatus(struct response_t *self, char *data, int sz) {
     return snprintf(data, sz,
             HTTP_VERSION " %d %s\r\n"
-            "Server: " SERVER_NAME "\r\n",
+            "Server: " SERVER_ID "\r\n",
             self->status_code, http_string_status(self->status_code));
 }
 
@@ -348,7 +348,7 @@ int http_gen_errorpage(struct response_t *self, char *data, int sz) {
     len += i;
     i = snprintf(data + len, sz,
             "<html><head><title>%d</title></head><body>"
-            "<h1>%d %s</h1><hr />" SERVER_NAME
+            "<h1>%d %s</h1><hr />" SERVER_ID
             "</body></html>",
             self->status_code, self->status_code,
             http_string_status(self->status_code));

@@ -282,7 +282,7 @@ int client_process_stage2(struct client_t *self) {
 #if HAVE_AUTH == 1
     if (auth_check(&self->request) != 0) {
         self->response.status_code = HTTP_STATUS_AUTHORIZATIONREQUIRED;
-        self->response.realm = SERVER_NAME;
+        self->response.realm = AUTH_REALM;
         return -1;
     }
 #endif
