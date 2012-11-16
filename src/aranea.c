@@ -24,11 +24,6 @@ struct config_t g_config;
 char g_buff[GBUFF_LENGTH];
 /** Server socket */
 struct server_t g_server;
-/* Authentication */
-#if HAVE_AUTH == 1
-struct auth_t *g_auth = NULL;
-#endif
-
 
 static unsigned int flags_ = 0;
 

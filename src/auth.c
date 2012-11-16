@@ -10,6 +10,9 @@
 
 #include <aranea/aranea.h>
 
+/* Authentication */
+static struct auth_t *auth_ = NULL;
+
 /* Just use g_buff for the buffer */
 #define AUTH_BUF_               g_buff
 
@@ -61,8 +64,8 @@ static
 void auth_add(struct auth_t *self) {
     /* Always push into the first place, so that the last record has the
      * highest priority */
-    self->next = g_auth;
-    g_auth = self;
+    self->next = auth_;
+    auth_ = self;
     A_LOG("Add auth path=%s, user=%s", self->path, self->user);
 }
 
@@ -74,7 +77,7 @@ struct auth_t *auth_find(const char *path) {
 
     len = strlen(path);
 
-    for (auth = g_auth; auth != NULL; auth = auth->next) {
+    for (auth = auth_; auth != NULL; auth = auth->next) {
         if ((len > auth->path_length)
                 && (strncmp(path, auth->path, auth->path_length) == 0)) {
             break;
@@ -144,7 +147,7 @@ int auth_parsefile(const char *path) {
 int auth_check(struct request_t *request) {
     struct auth_t *auth;
 
-    if (g_auth == NULL) {
+    if (auth_ == NULL) {
         return 0;
     }
 
@@ -164,14 +167,14 @@ int auth_check(struct request_t *request) {
 void auth_cleanup() {
     struct auth_t *auth, *next;
 
-    if (g_auth != NULL) {
-        auth = g_auth;
+    if (auth_ != NULL) {
+        auth = auth_;
         while (auth != NULL) {
             next = auth->next;
             free(auth);
             auth = next;
         }
-        g_auth = NULL;
+        auth_ = NULL;
     }
 }
 

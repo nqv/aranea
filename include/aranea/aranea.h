@@ -45,10 +45,6 @@ extern struct config_t g_config;
 extern char g_buff[GBUFF_LENGTH];
 extern struct server_t g_server;
 
-#if HAVE_AUTH == 1
-extern struct auth_t *g_auth;
-#endif
-
 #endif /* ARANEA_H_ */
 
 /* vim: set ts=4 sw=4 expandtab: */
