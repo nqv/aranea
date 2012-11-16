@@ -13,6 +13,7 @@ AUTH        ?= 0
 SRC = src/aranea.c \
 	src/server.c \
 	src/client.c \
+	src/clientpool.c \
 	src/http.c \
 	src/mimetype.c 
 
@@ -49,9 +50,7 @@ ${PKG}: ${OBJ}
 options:
 	@echo ${PGK} build options:
 	@echo "CFLAGS  = ${CFLAGS}"
-	@echo "LDFLAGS = ${LDFLAGS}"
 	@echo "LIBS    = ${LIBS}"
-	@echo "DFLAGS  = ${DFLAGS}"
 	@echo "CC      = ${CC}"
 
 %.o: %.c

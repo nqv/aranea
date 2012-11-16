@@ -107,7 +107,7 @@ struct client_t *server_accept(struct server_t *self) {
         }
 #endif
     }
-    c = alloc_client();
+    c = clientpool_alloc();
     if (c == NULL) {
         goto err;
     }
@@ -128,7 +128,7 @@ err:
     do {                                \
         client_close(c);                \
         client_remove(c);               \
-        detach_client(c);               \
+        clientpool_free(c);             \
     } while (0)
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \

@@ -29,34 +29,8 @@ struct server_t g_server;
 struct auth_t *g_auth = NULL;
 #endif
 
-/* save allocated clients to reduce number of malloc call */
-static struct client_t *poolclient_ = NULL;
-static int poolclient_len_ = 0;
+
 static unsigned int flags_ = 0;
-
-/** Get client from pool if possible
- */
-struct client_t *alloc_client() {
-    struct client_t *cli;
-
-    if (poolclient_ != NULL) {
-        cli = poolclient_;
-        client_remove(cli);
-        --poolclient_len_;
-    } else {
-        cli = malloc(sizeof(struct client_t));
-    }
-    return cli;
-}
-
-void detach_client(struct client_t *cli) {
-    if (poolclient_len_ > NUM_CACHED_CONN) {
-        free(cli);                          /* simply discard it */
-    } else {
-        client_add(cli, &poolclient_);
-        ++poolclient_len_;
-    }
-}
 
 static
 void print_help(const char *name) {
@@ -188,11 +162,7 @@ void cleanup() {
         client_close(tc);
         free(tc);
     }
-    for (c = poolclient_; c != NULL; ) {
-        tc = c;
-        c = c->next;
-        free(tc);
-    }
+    clientpool_cleanup();
 }
 
 static

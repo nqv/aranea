@@ -10,6 +10,7 @@
 #include <aranea/types.h>
 #include <aranea/server.h>
 #include <aranea/client.h>
+#include <aranea/clientpool.h>
 #include <aranea/http.h>
 #include <aranea/mimetype.h>
 #include <aranea/cgi.h>
@@ -37,15 +38,6 @@
                                     A_MAX(MAX_PATH_LENGTH, MAX_REQUEST_LENGTH))
 
 /* aranea.c */
-
-/** Create a new client object. The new one is either from client pool
- * or newly allocated.
- */
-struct client_t *alloc_client();
-
-/** Push this client into the pool or delete it if the pool is full.
- */
-void detach_client(struct client_t *cli);
 
 /* global variables */
 extern time_t g_curtime;
