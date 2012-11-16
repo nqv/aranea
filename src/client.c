@@ -34,7 +34,7 @@ void client_add(struct client_t *self, struct client_t **list) {
     self->prev = list;
 }
 
-void client_remove(struct client_t *self) {
+void client_detach(struct client_t *self) {
     if (self->next != NULL) {
         self->next->prev = self->prev;
     }

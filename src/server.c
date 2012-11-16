@@ -17,6 +17,16 @@
 
 #include <aranea/aranea.h>
 
+/**
+ * Close, detach and free client
+ */
+static
+void forget_client(struct client_t *c) {
+    client_close(c);
+    client_detach(c);
+    clientpool_free(c);
+}
+
 int server_init(struct server_t *self) {
     struct addrinfo hints, *info, *p;
     int enable = 1;
@@ -124,12 +134,6 @@ err:
 }
 #undef SERVER_GETINADDR_
 
-#define SERVER_REMCLIENT_(c)            \
-    do {                                \
-        client_close(c);                \
-        client_remove(c);               \
-        clientpool_free(c);             \
-    } while (0)
 #define SERVER_SETFD_(fd, set, max)     \
     do {                                \
         FD_SET(fd, set);                \
@@ -156,7 +160,7 @@ void server_poll(struct server_t *self) {
             A_LOG("client: timedout %d", c->remote_fd);
             tc = c;
             c = c->next;
-            SERVER_REMCLIENT_(tc);
+            forget_client(tc);
             continue;
         }
         switch (c->state) {
@@ -202,7 +206,7 @@ void server_poll(struct server_t *self) {
             /* Read header straightway */
             client_handle_recvheader(c);
             if (c->state == STATE_NONE) {
-                SERVER_REMCLIENT_(c);
+                forget_client(c);
             }
         }
         --num_fd;
@@ -241,7 +245,7 @@ void server_poll(struct server_t *self) {
             /* finished connection */
             struct client_t *tc = c;
             c = c->next;
-            SERVER_REMCLIENT_(tc);
+            forget_client(tc);
         } else {
             c = c->next;
         }

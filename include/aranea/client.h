@@ -22,7 +22,7 @@ void client_add(struct client_t *self, struct client_t **list);
 
 /** Remove current client from the list which it belongs to.
  */
-void client_remove(struct client_t *self);
+void client_detach(struct client_t *self);
 
 /** Close connection from the client.
  */

@@ -18,7 +18,7 @@ struct client_t *clientpool_alloc() {
 
     if (poolclient_ != NULL) {
         cli = poolclient_;
-        client_remove(cli);
+        client_detach(cli);
         --poolclient_len_;
     } else {
         cli = malloc(sizeof(struct client_t));
