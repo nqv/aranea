@@ -422,9 +422,9 @@ int http_get_realpath(const char *url, char *path) {
     len = snprintf(path, MAX_PATH_LENGTH, "%s%s", g_config.root, url);
 #endif
     /* append default index file */
-    if (url[strlen(url) - 1] == '/') {
+    if (path[len - 1] == '/') {
         /* url/index.html */
-        len = snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
+        len += snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
     }
     return len;
 }
