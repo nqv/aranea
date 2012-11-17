@@ -10,10 +10,7 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/sendfile.h>
 
 #include <aranea/aranea.h>
 
@@ -112,31 +109,6 @@ err:
     return -1;
 }
 
-#if HAVE_CGI == 1
-/**
- * Set response.status_code on error.
- */
-static
-int client_check_fileexec(struct client_t *self, const char *path) {
-    struct stat st;
-
-    if (access(path, X_OK) != 0) {
-        self->response.status_code = HTTP_STATUS_FORBIDDEN;
-        return -1;
-    }
-    if (stat(path, &st) == -1) {
-        A_ERR("stat: %s", strerror(errno));
-        self->response.status_code = HTTP_STATUS_SERVERERROR;
-        return -1;
-    }
-    if (S_ISDIR(st.st_mode)) {
-        self->response.status_code = HTTP_STATUS_FORBIDDEN;
-        return -1;
-    }
-    return 0;
-}
-#endif  /* HAVE_CGI */
-
 static
 int client_check_filemod(struct client_t *self) {
     char date[MAX_DATE_LENGTH];
@@ -201,72 +173,6 @@ err:
     return -1;
 }
 
-#if HAVE_CGI == 1
-static
-int client_process_cgi(struct client_t *self, const char *path) {
-    char *argv[2];
-    char *envp[MAX_CGIENV_ITEM];
-    pid_t pid;
-    int newio;
-
-    /* set socket back to blocking */
-    newio = fcntl(self->remote_fd, F_GETFL, NULL);
-    if (newio == -1
-            || fcntl(self->remote_fd, F_SETFL, newio & (~O_NONBLOCK)) == -1) {
-        A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
-        self->response.status_code = HTTP_STATUS_SERVERERROR;
-        return -1;
-    }
-#if HAVE_VFORK == 1
-    pid = vfork();
-#else
-    pid = fork();
-#endif  /* HAVE_VFORK */
-    if (pid < 0) {
-        self->response.status_code = HTTP_STATUS_SERVERERROR;
-        return -1;
-    }
-    if (pid == 0) {                             /* child */
-        /* Generate CGI parameters before touching to the buffer */
-        cgi_gen_env(&self->request, envp);
-
-        /* Send minimal header */
-        self->response.status_code = HTTP_STATUS_OK;
-        self->data_length = http_gen_header(&self->response, self->data,
-                sizeof(self->data), 0);
-        if (send(self->remote_fd, self->data, self->data_length, 0) < 0) {
-            _exit(1);
-        }
-        /* Tie CGI's stdin to the socket */
-        if (self->flags & CLIENT_FLAG_POST) {
-            if (dup2(self->remote_fd, STDIN_FILENO) < 0) {
-                _exit(1);
-            }
-        }
-        /* Tie CGI's stdout to the socket */
-        if (dup2(self->remote_fd, STDOUT_FILENO) < 0) {
-            _exit(1);
-        }
-        /* close unused FDs */
-        server_close_fds();
-        /* No error log */
-        newio = open("/dev/null", O_WRONLY);
-        if (newio != STDERR_FILENO) {
-            dup2(newio, STDERR_FILENO);
-            close(newio);
-        }
-        /* Execute cgi script */
-        argv[0] = (char *)path;
-        argv[1] = NULL;
-        execve(path, argv, envp);
-        _exit(1);                               /* exec error */
-    }
-    /* parent */
-    self->state = STATE_NONE;                   /* Remove this client */
-    return 0;
-}
-#endif  /* HAVE_CGI */
-
 /**
  * Response header is generated if ok.
  */
@@ -291,8 +197,8 @@ int client_process_stage2(struct client_t *self) {
     len = http_get_realpath(self->request.url, path);
 
 #if HAVE_CGI == 1
-    if (is_cgi(path, len)) {
-        if (client_check_fileexec(self, path) != 0) {
+    if (cgi_hit(path, len)) {
+        if (cgi_is_executable(path, self) != 0) {
             return -1;
         }
         if (self->flags & CLIENT_FLAG_HEADERONLY) {
@@ -302,7 +208,7 @@ int client_process_stage2(struct client_t *self) {
             self->state = STATE_SEND_HEADER;
             return 0;
         }
-        return client_process_cgi(self, path);
+        return cgi_exec(path, self);
     }
 #endif  /* HAVE_CGI */
 
@@ -345,7 +251,6 @@ int client_process_stage2(struct client_t *self) {
 
 /** Parse header and set state for the client
  */
-static
 void client_process(struct client_t *self) {
     int ret;
     if (http_parse(&self->request, self->data, self->data_length) != 0
@@ -369,110 +274,6 @@ void client_process(struct client_t *self) {
         self->data_length = http_gen_errorpage(&self->response, self->data,
                 sizeof(self->data));
         self->state = STATE_SEND_HEADER;
-    }
-}
-
-/** Read header from socket
- */
-void client_handle_recvheader(struct client_t *self) {
-    ssize_t len;
-
-    /* Just peek the data to find the end of the header */
-    if (self->request.header_length <= 0) {
-        len = recv(self->remote_fd, self->data, sizeof(self->data), MSG_PEEK);
-        if (len <= 0) {
-            if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                /* retry later */
-                A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
-            } else {
-                self->state = STATE_NONE;
-            }
-            return;
-        }
-        /* Check header termination */
-        if (len > 4) {
-            self->request.header_length = http_find_headerlength(self->data, len);
-            if (self->request.header_length < 0) {
-                /* Not found, check if data size is too large */
-                if (len >= MAX_REQUEST_LENGTH) {
-                    self->response.status_code = HTTP_STATUS_ENTITYTOOLARGE;
-                    self->data_length = http_gen_errorpage(&self->response,
-                            self->data, sizeof(self->data));
-                    self->state = STATE_SEND_HEADER;
-                }
-            }
-        }
-    }
-    /* Already peeked, pull data from the socket until reaching this position */
-    if (self->request.header_length > 0) {
-        len = recv(self->remote_fd, self->data + self->data_length,
-                self->request.header_length - self->data_length, 0);
-        if (len <= 0) {
-            if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                /* retry later */
-                A_LOG("client: %d recv %s", self->remote_fd, strerror(errno));
-            } else {
-                self->state = STATE_NONE;
-            }
-            return;
-        }
-        self->data_length += len;
-        if (self->data_length >= self->request.header_length) {
-            client_process(self);
-        }
-    }
-    /* Should not wait until next server loop to process this request */
-    if (self->state == STATE_SEND_HEADER) {
-        client_handle_sendheader(self);
-    }
-}
-
-/** Send reply (header) via socket
- */
-void client_handle_sendheader(struct client_t *self) {
-    ssize_t len;
-
-    len = send(self->remote_fd, self->data + self->data_sent,
-                self->data_length - self->data_sent, 0);
-    if (len <= 0) {
-        A_LOG("client: %d send %s", self->remote_fd, strerror(errno));
-        if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            return;
-        }
-        self->state = STATE_NONE;
-        return;
-    }
-    self->data_sent += len;
-
-    /* check if finish sending header */
-    if (self->data_sent >= self->data_length) {
-        self->data_length = self->data_sent = 0;
-        if (self->local_rfd == -1) {
-            self->state = STATE_NONE;
-        } else {
-            self->state = STATE_SEND_FILE;
-        }
-    }
-}
-
-void client_handle_sendfile(struct client_t *self) {
-    ssize_t len;
-    off_t offset;
-
-    offset = self->response.content_from + self->file_sent;
-    len = sendfile(self->remote_fd, self->local_rfd, &offset,
-            self->response.content_length - self->file_sent);
-    if (len <= 0) {
-        if (len == -1 && errno == EAGAIN) {
-            A_LOG("client: %d sendfile blocked", self->remote_fd);
-        } else {
-            self->state = STATE_NONE;
-        }
-        return;
-    }
-    self->file_sent += len;
-    if (self->file_sent >= self->response.content_length) {
-        self->state = STATE_NONE;
     }
 }
 

@@ -40,9 +40,6 @@
 #define CGI_DOCUMENT_ROOT
 #define CGI_REQUEST_METHOD
 #define CGI_REQUEST_URI
-#define CGI_QUERY_STRING
-#define CGI_CONTENT_TYPE
-#define CGI_CONTENT_LENGTH
 #define CGI_HTTP_COOKIE
 
 /* Features supported */

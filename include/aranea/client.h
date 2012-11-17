@@ -28,17 +28,9 @@ void client_detach(struct client_t *self);
  */
 void client_close(struct client_t *self);
 
-/** Called when client starts receiving header
+/** Process received data.
  */
-void client_handle_recvheader(struct client_t *self);
-
-/** Called to send header.
- */
-void client_handle_sendheader(struct client_t *self);
-
-/** Called to send (static) file.
- */
-void client_handle_sendfile(struct client_t *self);
+void client_process(struct client_t *self);
 
 #endif /* ARANEA_CLIENT_H_ */
 

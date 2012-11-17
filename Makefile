@@ -12,6 +12,7 @@ AUTH        ?= 0
 
 SRC = src/aranea.c \
 	src/server.c \
+	src/state.c \
 	src/client.c \
 	src/clientpool.c \
 	src/http.c \

@@ -9,6 +9,7 @@
 #include <aranea/config.h>
 #include <aranea/types.h>
 #include <aranea/server.h>
+#include <aranea/state.h>
 #include <aranea/client.h>
 #include <aranea/clientpool.h>
 #include <aranea/http.h>

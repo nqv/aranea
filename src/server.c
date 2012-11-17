@@ -204,7 +204,7 @@ void server_poll(struct server_t *self) {
             client_add(c, &self->clients);
             c->timeout = chk_time;
             /* Read header straightway */
-            client_handle_recvheader(c);
+            state_recv_header(c);
             if (c->state == STATE_NONE) {
                 forget_client(c);
             }
@@ -218,21 +218,21 @@ void server_poll(struct server_t *self) {
         case STATE_RECV_HEADER:
             if (FD_ISSET(c->remote_fd, &rfds)) {
                 c->timeout = chk_time;
-                client_handle_recvheader(c);
+                state_recv_header(c);
                 --num_fd;
             }
             break;
         case STATE_SEND_HEADER:
             if (FD_ISSET(c->remote_fd, &wfds)) {
                 c->timeout = chk_time;
-                client_handle_sendheader(c);
+                state_send_header(c);
                 --num_fd;
             }
             break;
         case STATE_SEND_FILE:
             if (FD_ISSET(c->remote_fd, &wfds)) {
                 c->timeout = chk_time;
-                client_handle_sendfile(c);
+                state_send_file(c);
                 --num_fd;
             }
             break;
@@ -243,7 +243,7 @@ void server_poll(struct server_t *self) {
         }
         if (c->state == STATE_NONE) {
             /* finished connection */
-            struct client_t *tc = c;
+            tc = c;
             c = c->next;
             forget_client(tc);
         } else {
