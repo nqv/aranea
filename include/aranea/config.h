@@ -44,16 +44,19 @@
 
 /* Features supported */
 #ifndef HAVE_AUTH
-#define HAVE_AUTH                   0
+# define HAVE_AUTH                  0
 #endif
 #ifndef HAVE_CGI
-#define HAVE_CGI                    0
+# define HAVE_CGI                   0
 #endif
 #ifndef HAVE_CHROOT
-#define HAVE_CHROOT                 0
+# define HAVE_CHROOT                0
 #endif
 #ifndef HAVE_VFORK
-#define HAVE_VFORK                  0
+# define HAVE_VFORK                 0
+#endif
+#ifndef HAVE_TCPCORK
+# define HAVE_TCPCORK               0
 #endif
 
 #endif /* ARANEA_CONFIG_H_ */

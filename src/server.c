@@ -91,6 +91,7 @@ struct client_t *server_accept(struct server_t *self) {
     socklen_t len;
     struct sockaddr_storage addr;
     int fd;
+    int flags;
     struct client_t *c;
 
     len = sizeof(addr);
@@ -99,24 +100,23 @@ struct client_t *server_accept(struct server_t *self) {
         A_ERR("server: accept %s", strerror(errno));
         return NULL;
     }
-    {   /* set socket to non-blocking */
-        int flags = fcntl(fd, F_GETFL, NULL);
-        if (flags == -1) {
-            A_ERR("fcntl: F_GETFL %s", strerror(errno));
-            goto err;
-        }
-        if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-            A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
-            goto err;
-        }
-#if 0
-        flags = 1;
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags,
-                sizeof(flags)) == -1) {
-            goto err;
-        }
-#endif
+    /* set socket to non-blocking */
+    flags = fcntl(fd, F_GETFL, NULL);
+    if (flags == -1) {
+        A_ERR("fcntl: F_GETFL %s", strerror(errno));
+        goto err;
     }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        A_ERR("fcntl: F_SETFL O_NONBLOCK %s", strerror(errno));
+        goto err;
+    }
+#if HAVE_TCPCORK == 1
+    flags = 1;
+    if (setsockopt(fd, IPPROTO_TCP, TCP_CORK, &flags,
+            sizeof(flags)) == -1) {
+        goto err;
+    }
+#endif
     c = clientpool_alloc();
     if (c == NULL) {
         goto err;
