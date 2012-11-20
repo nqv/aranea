@@ -1,14 +1,6 @@
-PKG = aranea
+# Aranea
 
-DEBUG       ?= 0
-# Use vfork (uClinux)
-VFORK       ?= 0
-# Support CGI
-CGI         ?= 0
-# Use chroot
-CHROOT      ?= 0
-# Authorization
-AUTH        ?= 0
+include config.mk
 
 SRC = src/aranea.c \
 	src/server.c \
@@ -59,4 +51,4 @@ options:
 	@${CC} -c ${CFLAGS} -o $@ $<
 
 clean:
-	@rm -rf ${PKG} ${OBJ}
+	@rm -rf ${PKG} src/*.o

@@ -1,0 +1,23 @@
+# Makefile for uClinux
+VFORK=1
+
+ifdef CONFIG_USER_ARANEA_WITH_CGI
+CGI=1
+endif
+
+ifdef CONFIG_USER_ARANEA_WITH_AUTH
+AUTH=1
+endif
+
+include config.mk
+export VFORK CGI AUTH
+
+all:
+	${MAKE} -f Makefile $@
+
+romfs:
+	${ROMFSINST} ${PKG} /bin/${PKG}
+
+clean:
+	${MAKE} -f Makefile $@
+	@rm -rf ${PKG}.gdb src/*.gdb
