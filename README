@@ -1,6 +1,6 @@
 Aranea - Thin single-threaded HTTP server.
 
-There are lots of HTTPd programs out there, but none of them is embedded Linux
+There are lots of web servers out there, but none of them is embedded Linux
 friendly, especially uClinux, which does not have fork system call nor threads,
 as well as limited stack size. Therefore, it should be small footprint and
 using of malloc() is avoided where possible.
@@ -17,6 +17,7 @@ To achieve these goals, Aranea is not fully compliant with any specification :)
 
 * Will be supported:
 - axTLS (http://axtls.sf.net)
+- Aranea library as an unblocking tcp server for embedded systems.
 
 * Will NOT be supported:
 - Directory listing (can be done using a CGI script. See www/dir.cgi).
@@ -27,6 +28,8 @@ Using vfork() rather than fork() (under uClinux):
 $ make VFORK=1
 Enable CGI and Authentication:
 $ make CGI=1 AUTH=1
+
+For more settings, see include/aranea/config.h
 
 Run
 ---
