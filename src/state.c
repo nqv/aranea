@@ -75,8 +75,9 @@ void state_recv_header(struct client_t *client) {
 void state_send_header(struct client_t *client) {
     ssize_t len;
 
+    /* MSG_NOSIGNAL: not to send SIGPIPE on errors on socket */
     len = send(client->remote_fd, client->data + client->data_sent,
-                client->data_length - client->data_sent, 0);
+                client->data_length - client->data_sent, MSG_NOSIGNAL);
     CHECK_NONBLOCKING_ERROR(len, client, "send");
     client->data_sent += len;
 
