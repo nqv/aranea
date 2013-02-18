@@ -121,7 +121,7 @@ struct client_t *server_accept(struct server_t *self) {
     if (c == NULL) {
         goto err;
     }
-    client_reset(c);
+    client_init(c);
     /* save client information */
     c->remote_fd = fd;
     c->state = STATE_RECV_HEADER;

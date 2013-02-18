@@ -11,7 +11,7 @@
 #include <aranea/aranea.h>
 
 static
-const char * const REQUEST_HEADER_NAMES[NUM_REQUEST_HEADER] = {
+const char * const HTTP_REQUEST_HEADERS[NUM_REQUEST_HEADER] = {
 #if HAVE_AUTH == 1
         "Authorization",
 #endif
@@ -71,7 +71,7 @@ void http_save_header(struct request_t *self, char *key, char *val) {
     int i;
 
     for (i = 0; i < NUM_REQUEST_HEADER; ++i) {
-        if (strcasecmp(key, REQUEST_HEADER_NAMES[i]) == 0) {
+        if (strcasecmp(key, HTTP_REQUEST_HEADERS[i]) == 0) {
             self->header[i] = val;
             break;
         }

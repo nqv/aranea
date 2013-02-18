@@ -53,6 +53,7 @@ enum {
 enum {
     CLIENT_FLAG_HEADERONLY      = 1 << 0,
     CLIENT_FLAG_POST            = 1 << 1,
+    CLIENT_FLAG_KEEPALIVE       = 1 << 2,   /* Do not close connection */
 };
 
 /** HTTP request headers.

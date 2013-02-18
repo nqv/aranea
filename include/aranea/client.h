@@ -14,6 +14,10 @@ struct client_t *client_new();
 
 /** Reset status of the client object to reuse it for another connection.
  */
+void client_init(struct client_t *self);
+
+/** Reset client but keep current connection status (remote socket).
+ */
 void client_reset(struct client_t *self);
 
 /** Add this client to the list.

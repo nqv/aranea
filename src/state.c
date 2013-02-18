@@ -29,6 +29,16 @@
         }                                                                   \
     } while (0)
 
+static
+void state_finish(struct client_t *client) {
+    if (client->flags & CLIENT_FLAG_KEEPALIVE) {
+        client_reset(client);
+        client->state = STATE_RECV_HEADER;
+    } else {
+        client->state = STATE_NONE;
+    }
+}
+
 /** Read header from socket
  */
 void state_recv_header(struct client_t *client) {
@@ -85,7 +95,7 @@ void state_send_header(struct client_t *client) {
     if (client->data_sent >= client->data_length) {
         client->data_length = client->data_sent = 0;
         if (client->local_rfd == -1) {
-            client->state = STATE_NONE;
+            state_finish(client);
         } else {
             client->state = STATE_SEND_FILE;
         }
@@ -102,7 +112,9 @@ void state_send_file(struct client_t *client) {
     CHECK_NONBLOCKING_ERROR(len, client, "sendfile");
     client->file_sent += len;
     if (client->file_sent >= client->response.content_length) {
-        client->state = STATE_NONE;
+        close(client->local_rfd);
+        client->local_rfd = -1;
+        state_finish(client);
     }
 }
 

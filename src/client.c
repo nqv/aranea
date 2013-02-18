@@ -47,16 +47,22 @@ void client_close(struct client_t *self) {
     }
 }
 
-/** Reset client to initial state
+/** Set client to initial state
  */
-void client_reset(struct client_t *self) {
+void client_init(struct client_t *self) {
     self->remote_fd = -1;
     self->local_rfd = -1;
     self->ip[0] = '\0';
+    self->state = STATE_NONE;
+    client_reset(self);
+}
+
+/** Reset client but keep connection status
+ */
+void client_reset(struct client_t *self) {
     self->data_length = 0;
     self->data_sent = 0;
     self->file_sent = 0;
-    self->state = STATE_NONE;
     self->flags = 0;
     memset(&self->request, 0, sizeof(self->request));
     memset(&self->response, 0, sizeof(self->response));
@@ -177,7 +183,7 @@ err:
  * Response header is generated if ok.
  */
 static
-int client_process_stage2(struct client_t *self) {
+int client_respond(struct client_t *self) {
     int len;
     char path[MAX_PATH_LENGTH];
 
@@ -212,6 +218,12 @@ int client_process_stage2(struct client_t *self) {
     }
 #endif  /* HAVE_CGI */
 
+    /* in case user-agent would prefer keeping this connection (but not
+     * for cgi (POST) request) */
+    if (self->request.header[HEADER_CONNECTION] != NULL
+            && strcmp("keep-alive", self->request.header[HEADER_CONNECTION]) == 0) {
+        self->flags |= CLIENT_FLAG_KEEPALIVE;
+    }
     /* open file */
     if (client_open_file(self, path) != 0) {
         return -1;
@@ -259,13 +271,13 @@ void client_process(struct client_t *self) {
         self->response.status_code = HTTP_STATUS_BADREQUEST;
         ret = -1;
     } else if (strcmp(self->request.method, "GET") == 0) {
-        ret = client_process_stage2(self);
+        ret = client_respond(self);
     } else if (strcmp(self->request.method, "HEAD") == 0) {
         self->flags |= CLIENT_FLAG_HEADERONLY;
-        ret = client_process_stage2(self);
+        ret = client_respond(self);
     } else if (strcmp(self->request.method, "POST") == 0) {
         self->flags |= CLIENT_FLAG_POST;
-        ret = client_process_stage2(self);
+        ret = client_respond(self);
     } else {
         self->response.status_code = HTTP_STATUS_NOTIMPLEMENTED;
         ret = -1;
