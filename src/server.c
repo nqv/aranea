@@ -48,33 +48,33 @@ int server_init(struct server_t *self) {
     for (p = info; p != NULL; p = p->ai_next) {
         fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (fd == -1) {
-            A_ERR("server: socket %s", strerror(errno));
+            A_ERR("socket: %s", strerror(errno));
             continue;
         }
         if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) == -1) {
             close(fd);
-            A_ERR("setsockopt %s", strerror(errno));
+            A_ERR("setsockopt: %s", strerror(errno));
             return -1;
         }
         if (bind(fd, p->ai_addr, p->ai_addrlen) == -1) {
             close(fd);
-            A_ERR("server: bind %s", strerror(errno));
+            A_ERR("bind: %s", strerror(errno));
             continue;
         }
         break;
     }
     if (p == NULL) {
-        A_ERR("server: failed to bind %s", strerror(errno));
+        A_ERR("bind: %s", strerror(errno));
         return -1;
     }
     freeaddrinfo(info);
 
     if (listen(fd, MAX_CONN) == -1) {
         close(fd);
-        A_ERR("server: listen %s", strerror(errno));
+        A_ERR("listen: %s", strerror(errno));
         return -1;
     }
-    A_LOG("server: listen %d", self->port);
+    A_LOG("listen %d", self->port);
     self->fd = fd;
     return 0;
 }
@@ -97,7 +97,7 @@ struct client_t *server_accept(struct server_t *self) {
     len = sizeof(addr);
     fd = accept(self->fd, (struct sockaddr *)&addr, &len);
     if (fd == -1) {
-        A_ERR("server: accept %s", strerror(errno));
+        A_ERR("accept: %s", strerror(errno));
         return NULL;
     }
     /* set socket to non-blocking */
@@ -126,7 +126,7 @@ struct client_t *server_accept(struct server_t *self) {
     c->remote_fd = fd;
     c->state = STATE_RECV_HEADER;
     inet_ntop(addr.ss_family, SERVER_GETINADDR_(&addr), c->ip, sizeof(c->ip));
-    A_LOG("server: accept %d %s", fd, c->ip);
+    A_LOG("accept %d %s", fd, c->ip);
     return c;
 err:
     close(fd);
@@ -157,7 +157,7 @@ void server_poll(struct server_t *self) {
     g_curtime = time(NULL);
     for (c = self->clients; c != NULL; ) {
         if (g_curtime > c->timeout) {
-            A_LOG("client: timedout %d", c->remote_fd);
+            A_LOG("timeout client %d", c->remote_fd);
             tc = c;
             c = c->next;
             forget_client(tc);
@@ -190,7 +190,7 @@ void server_poll(struct server_t *self) {
             if (errno == EINTR) {
                 continue;
             } else {
-                A_ERR("server: select %s", strerror(errno));
+                A_ERR("select: %s", strerror(errno));
                 sleep(1);
             }
         }
@@ -243,6 +243,7 @@ void server_poll(struct server_t *self) {
         }
         if (c->state == STATE_NONE) {
             /* finished connection */
+            A_LOG("close client %d", c->remote_fd);
             tc = c;
             c = c->next;
             forget_client(tc);

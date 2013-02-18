@@ -18,13 +18,17 @@
  */
 #define CHECK_NONBLOCKING_ERROR(rv, cl, method)                             \
     do {                                                                    \
-        if (rv <= 0) {                                                      \
-            if (rv == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {    \
-                A_LOG("client: %d %s blocked", client->remote_fd, method);  \
+        if (rv == -1) {                                                     \
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {    \
+                A_LOG("%s: client %d blocked", method, client->remote_fd);  \
             } else {                                                        \
-                A_ERR("client: %d %s %s", client->remote_fd, method, strerror(errno)); \
+                A_ERR("%s: client %d %s", method, client->remote_fd, strerror(errno)); \
                 client->state = STATE_NONE;                                 \
             }                                                               \
+            return;                                                         \
+        } else if (rv == 0) {                                               \
+            /* this connection is closed */                                 \
+            client->state = STATE_NONE;                                     \
             return;                                                         \
         }                                                                   \
     } while (0)

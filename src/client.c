@@ -139,8 +139,6 @@ static
 int client_check_filerange(struct client_t *self) {
     off_t pos;
 
-    A_LOG("rangefrom=%s rangeto=%s", self->request.range_from,
-            self->request.range_to);
     if (self->request.range_from != NULL) {
         self->response.content_from = strtol(self->request.range_from, NULL, 10);
 
