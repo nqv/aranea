@@ -15,6 +15,14 @@
 
 #include <aranea/aranea.h>
 
+#define CHECK_OPTION_(val, opt)                             \
+    do {                                                    \
+        if ((val) == NULL) {                                \
+            fprintf(stderr, "Option %c requires an argument.\n", opt);  \
+            return -1;                                      \
+        }                                                   \
+    } while (0)
+
 /* global vars */
 /** Current time: used in HTTP date and server timeout checking */
 time_t g_curtime;
@@ -29,66 +37,61 @@ static unsigned int flags_ = 0;
 
 static
 void print_help(const char *name) {
-    printf("Usage: %s [ARGUMENTS]\n", name);
+    fprintf(stdout, "Usage: %s [OPTION]...\n", name);
 
-    printf("Arguments:\n%s",
-            "  -d                   Run as daemon (background) mode\n"
-            "  -r DOCUMENT_ROOT     Server root (absolute path)\n"
-            "  -p PORT              Server listening port\n"
+    fprintf(stdout, "Options:\n%s",
 #if HAVE_AUTH == 1
-            "  -f AUTH_FILE         Authentication file\n"
+            "  -a AUTH_FILE         Authentication file\n"
 #endif
+            "  -d                   Run as daemon (background) mode\n"
+            "  -p PORT              Server listening port\n"
+            "  -r DOCUMENT_ROOT     Server root (absolute path)\n"
             );
 
-    printf("Version: %s (AUTH=%d CGI=%d CHROOT=%d VFORK=%d)\n",
+    fprintf(stdout, "Version: %s (AUTH=%d CGI=%d CHROOT=%d VFORK=%d)\n",
             ARANEA_VERSION, HAVE_AUTH, HAVE_CGI, HAVE_CHROOT, HAVE_VFORK);
 
     exit(0);
 }
 
 static
-void parse_options(int argc, char **argv) {
+int parse_options(int argc, char **argv) {
     int i;
-    char sw;    /* current switch */
 
     /* default settings */
     g_server.port = PORT;
     g_config.root = ".";                /* current dir */
 
-    if (argc > 1) {         /* at least one argument */
-        sw = '\0';
-        for (i = 1; i < argc; ++i) {
-            if (argv[i][0] == '-') {
-                sw = argv[i][1];
-                /* switches that have no additional argument */
-                switch (sw) {
-                case 'h':
-                    print_help(argv[0]);
-                    sw = '\0';
-                    break;
-                case 'd':
-                    flags_ |= FLAG_DAEMON;
-                    sw = '\0';
-                    break;
-                }
-            } else {
-                switch (sw) {
-                case 'r':
-                    g_config.root = argv[i];
-                    break;
-                case 'p':
-                    g_server.port = atoi(argv[i]);
-                    break;
+    for (i = 1; i < argc; ++i) {
+        if (argv[i][0] == '-') {
+            switch (argv[i][1]) {
 #if HAVE_AUTH == 1
-                case 'f':
-                    g_config.auth_file = argv[i];
-                    break;
+            case 'a':
+                ++i;
+                CHECK_OPTION_(argv[i], 'a');
+                g_config.auth_file = argv[i];
+                break;
 #endif
-                }
-                sw = '\0';
+            case 'd':
+                flags_ |= FLAG_DAEMON;
+                break;
+            case 'h':
+                print_help(argv[0]);
+                break;
+            case 'p':
+                ++i;
+                CHECK_OPTION_(argv[i], 'p');
+                g_server.port = atoi(argv[i]);
+                break;
+            case 'r':
+                ++i;
+                CHECK_OPTION_(argv[i], 'r');
+                g_config.root = argv[i];
+                break;
             }
         }
     }
+    return 0;
 }
 
 /** Initialize from user configurations
@@ -214,8 +217,9 @@ void daemonize(char **argv) {
 
 int main(int argc, char **argv) {
     /* parse command line arguments */
-    parse_options(argc, argv);
-
+    if (parse_options(argc, argv) != 0) {
+        return 1;
+    }
     if (flags_ & FLAG_DAEMON) {
         daemonize(argv);
     }
