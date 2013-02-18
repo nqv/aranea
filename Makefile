@@ -28,8 +28,7 @@ SRC += src/cgi.c
 endif
 
 ifeq (${AUTH},1)
-SRC += src/auth.c \
-	src/util.c
+SRC += src/auth.c
 endif
 
 OBJ = ${SRC:.c=.o}

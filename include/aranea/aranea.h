@@ -16,7 +16,6 @@
 #include <aranea/mimetype.h>
 #include <aranea/cgi.h>
 #include <aranea/auth.h>
-#include <aranea/util.h>
 
 #define A_QUOTE(x)              #x
 #define A_TOSTR(x)              A_QUOTE(x)
