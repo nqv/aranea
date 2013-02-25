@@ -192,12 +192,9 @@ int auth_parsefile(const char *path) {
  * Return 0 if authorization is not required
  *       -1 if it is required
  */
+static
 int auth_check(struct request_t *request) {
     struct auth_t *auth;
-
-    if (auth_ == NULL) {
-        return 0;
-    }
 
     auth = auth_find(request->url);
     if (auth != NULL) {
@@ -208,6 +205,18 @@ int auth_check(struct request_t *request) {
             return -1;
         }
         return auth_verify(auth, request->header[HEADER_AUTHORIZATION] + 6);
+    }
+    return 0;
+}
+
+int auth_process(struct client_t *client) {
+    if (auth_ == NULL) {
+        return 0;
+    }
+    if (auth_check(&client->request) != 0) {
+        client->response.status_code = HTTP_STATUS_AUTHORIZATIONREQUIRED;
+        client->response.realm = AUTH_REALM;
+        return -1;
     }
     return 0;
 }

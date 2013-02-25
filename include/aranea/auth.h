@@ -15,7 +15,7 @@ int auth_parsefile(const char *path);
 
 /** Note: this modify g_buff
  */
-int auth_check(struct request_t *request);
+int auth_process(struct client_t *client);
 
 void auth_cleanup();
 

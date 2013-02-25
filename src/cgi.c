@@ -27,6 +27,10 @@ int cgi_hit(const char *name, const int len) {
     return 0;
 }
 
+/** Check if file is executable.
+ * HTTP error code is set to client->response.status_code.
+ */
+static
 int cgi_is_executable(const char *path, struct client_t *client) {
     struct stat st;
 
@@ -58,9 +62,10 @@ int cgi_is_executable(const char *path, struct client_t *client) {
         }                                                           \
     } while (0)
 
-/**
- * Data are saved in g_cgienv
+/** Generate CGI environment from HTTP request.
+ * Values are saved in g_buff (g_cgienv)
  */
+static
 int cgi_gen_env(const struct request_t *req, char **env) {
     int cnt, len;
     char *buf;
@@ -103,6 +108,10 @@ int cgi_gen_env(const struct request_t *req, char **env) {
 # define EXIT_(x)       exit(x)
 #endif  /* HAVE_VFORK */
 
+/** Execute file.
+ * HTTP error code is set to client->response.status_code.
+ */
+static
 int cgi_exec(const char *path, struct client_t *client) {
     char *argv[2];
     char *envp[MAX_CGIENV_ITEM];
@@ -160,6 +169,20 @@ int cgi_exec(const char *path, struct client_t *client) {
     /* parent */
     client->state = STATE_NONE;                   /* Remove this client */
     return 0;
+}
+
+int cgi_process(struct client_t *client, const char *path) {
+    if (cgi_is_executable(path, client) != 0) {
+        return -1;
+    }
+    if (client->flags & CLIENT_FLAG_HEADERONLY) {
+        client->response.status_code = HTTP_STATUS_OK;
+        client->data_length = http_gen_header(&client->response, client->data,
+                sizeof(client->data), HTTP_FLAG_END);
+        client->state = STATE_SEND_HEADER;
+        return 0;
+    }
+    return cgi_exec(path, client);
 }
 
 /* vim: set ts=4 sw=4 expandtab: */

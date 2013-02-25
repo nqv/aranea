@@ -190,9 +190,7 @@ int client_respond(struct client_t *self) {
     http_sanitize_url(self->request.url);
 
 #if HAVE_AUTH == 1
-    if (auth_check(&self->request) != 0) {
-        self->response.status_code = HTTP_STATUS_AUTHORIZATIONREQUIRED;
-        self->response.realm = AUTH_REALM;
+    if (auth_process(self) != 0) {
         return -1;
     }
 #endif
@@ -201,18 +199,8 @@ int client_respond(struct client_t *self) {
     len = http_get_realpath(self->request.url, path);
 
 #if HAVE_CGI == 1
-    if (cgi_hit(path, len)) {
-        if (cgi_is_executable(path, self) != 0) {
-            return -1;
-        }
-        if (self->flags & CLIENT_FLAG_HEADERONLY) {
-            self->response.status_code = HTTP_STATUS_OK;
-            self->data_length = http_gen_header(&self->response, self->data,
-                    sizeof(self->data), HTTP_FLAG_END);
-            self->state = STATE_SEND_HEADER;
-            return 0;
-        }
-        return cgi_exec(path, self);
+    if (cgi_hit(path, len) != 0) {
+        return cgi_process(self, path);
     }
 #endif  /* HAVE_CGI */
 
