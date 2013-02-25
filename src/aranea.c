@@ -81,7 +81,7 @@ int parse_options(int argc, char **argv) {
             case 'p':
                 ++i;
                 CHECK_OPTION_(argv[i], 'p');
-                g_server.port = atoi(argv[i]);
+                g_server.port = argv[i];
                 break;
             case 'r':
                 ++i;

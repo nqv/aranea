@@ -30,7 +30,6 @@ void forget_client(struct client_t *c) {
 int server_init(struct server_t *self) {
     struct addrinfo hints, *info, *p;
     int enable = 1;
-    char buf[8];
     int fd;
 
     memset(&hints, 0, sizeof(hints));
@@ -38,8 +37,7 @@ int server_init(struct server_t *self) {
     hints.ai_socktype   = SOCK_STREAM;
     hints.ai_flags      = AI_PASSIVE;
 
-    snprintf(buf, sizeof(buf), "%d", self->port);
-    fd = getaddrinfo(NULL, buf, &hints, &info);
+    fd = getaddrinfo(NULL, self->port, &hints, &info);
     if (fd != 0) {
         A_ERR("getaddrinfo: %s\n", gai_strerror(fd));
         return -1;
@@ -74,7 +72,7 @@ int server_init(struct server_t *self) {
         A_ERR("listen: %s", strerror(errno));
         return -1;
     }
-    A_LOG("listen %d", self->port);
+    A_LOG("listen %s", self->port);
     self->fd = fd;
     return 0;
 }

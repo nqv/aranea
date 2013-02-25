@@ -141,7 +141,7 @@ struct client_t {
 
 struct server_t {
     int fd;
-    int port;
+    const char *port;
     struct client_t *clients;
 };
 
