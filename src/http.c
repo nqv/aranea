@@ -10,6 +10,18 @@
 
 #include <aranea/aranea.h>
 
+#define HTTP_PUT_HEADER_(flag, callback, len, sz)                   \
+    do {                                                            \
+        if (flags & flag) {                                         \
+            i = callback(self, data + len, sz);                     \
+            if (i < 0 || i >= sz) {                                 \
+                return -1;                                          \
+            }                                                       \
+            sz -= i;                                                \
+            len += i;                                               \
+        }                                                           \
+    } while (0)
+
 static
 const char * const HTTP_REQUEST_HEADERS[NUM_REQUEST_HEADER] = {
 #if HAVE_AUTH == 1
@@ -43,6 +55,7 @@ int hex_to_int(const char c) {
 static
 void http_parse_range(struct request_t *self, char *val) {
     char *delim;
+
     if (strncmp(val, "bytes=", 6) != 0) {
         A_ERR("ranges are not in bytes: %s", val);
         return;
@@ -248,28 +261,28 @@ int http_put_headercontent(struct response_t *self, char *data, int sz) {
     if (self->content_length >= 0) {
         i = snprintf(data, sz, "Content-Length: %ld\r\n",
                 self->content_length);
-        sz -= i;
-        if (sz < 0) {
+        if (i < 0 || i >= sz) {
             return -1;
         }
+        sz -= i;
         len += i;
     }
     if (self->content_type != NULL) {
         i = snprintf(data + len, sz, "Content-Type: %s\r\n",
                 self->content_type);
-        sz -= i;
-        if (sz < 0) {
+        if (i < 0 || i >= sz) {
             return -1;
         }
+        sz -= i;
         len += i;
     }
     if (self->last_mod >= 0) {
         i = strftime(data + len, sz, "Last-Modified: " DATE_FORMAT "\r\n",
                 gmtime(&self->last_mod));
-        sz -= i;
-        if (sz < 0) {
+        if (i < 0 || i >= sz) {
             return -1;
         }
+        sz -= i;
         len += i;
     }
     return len;
@@ -286,25 +299,16 @@ int http_put_headerrange(struct response_t *self, char *data, int sz) {
             self->content_from, to, self->total_length);
 }
 
-#define HTTP_PUT_HEADER_(flag, callback, len, sz)                   \
-    if (flags & flag) {                                             \
-        i = callback(self, data + len, sz);                         \
-        sz -= i;                                                    \
-        if (sz < 0) {                                               \
-            return -1;                                              \
-        }                                                           \
-        len += i;                                                   \
-    }
-
 int http_gen_header(struct response_t *self, char *data, int sz,
         const unsigned int flags) {
     int len, i;
 
     len = http_put_headerstatus(self, data, sz);
-    sz -= len;
-    if (sz < 0) {
+    if (len < 0 || len >= sz) {
         return -1;
     }
+    sz -= len;
+
     HTTP_PUT_HEADER_(HTTP_FLAG_DATE, http_put_headerdate, len, sz);
     HTTP_PUT_HEADER_(HTTP_FLAG_ACCEPT, http_put_headeraccept, len, sz);
     HTTP_PUT_HEADER_(HTTP_FLAG_CONTENT, http_put_headercontent, len, sz);
@@ -312,7 +316,7 @@ int http_gen_header(struct response_t *self, char *data, int sz,
 
     if (flags & HTTP_FLAG_END) {
         i = snprintf(data + len, sz, "\r\n");
-        if (i < 0) {
+        if (i < 0 || i >= sz) {
             return -1;
         }
         len += i;
@@ -324,27 +328,28 @@ int http_gen_errorpage(struct response_t *self, char *data, int sz) {
     int len, i;
 
     len = http_put_headerstatus(self, data, sz);
-    sz -= len;
-    if (sz < 0) {
+    if (len < 0 || len >= sz) {
         return -1;
     }
+    sz -= len;
+
 #if HAVE_AUTH == 1
     if (self->realm != NULL) {
         i = snprintf(data + len, sz,
                 "WWW-Authenticate: Basic realm=\"%s\"\r\n", self->realm);
-        sz -= i;
-        if (sz < 0) {
+        if (i < 0 || i >= sz) {
             return -1;
         }
+        sz -= i;
         len += i;
     }
 #endif
     i = snprintf(data + len, sz,
             "Content-Type: text/html\r\n\r\n");
-    sz -= i;
-    if (sz < 0) {
+    if (i < 0 || i >= sz) {
         return -1;
     }
+    sz -= i;
     len += i;
     i = snprintf(data + len, sz,
             "<html><head><title>%d</title></head><body>"
@@ -352,6 +357,9 @@ int http_gen_errorpage(struct response_t *self, char *data, int sz) {
             "</body></html>",
             self->status_code, self->status_code,
             http_string_status(self->status_code));
+    if (i < 0 || i >= sz) {
+        return -1;
+    }
     return len + i;
 }
 
@@ -421,10 +429,16 @@ int http_get_realpath(const char *url, char *path) {
 #else
     len = snprintf(path, MAX_PATH_LENGTH, "%s%s", g_config.root, url);
 #endif
+    if (len >= MAX_PATH_LENGTH) {
+        len = MAX_PATH_LENGTH - 1;
+    }
     /* append default index file */
     if (path[len - 1] == '/') {
         /* url/index.html */
         len += snprintf(path + len, MAX_PATH_LENGTH - len, "%s", WWW_INDEX);
+        if (len >= MAX_PATH_LENGTH) {
+            len = MAX_PATH_LENGTH - 1;
+        }
     }
     return len;
 }
